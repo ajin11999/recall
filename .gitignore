@@ -1,0 +1,14 @@
+node_modules/
+.wrangler/
+.dev.vars
+dist/
+*.log
+
+# Flutter
+app/.dart_tool/
+app/build/
+app/.flutter-plugins*
+app/android/.gradle/
+app/android/local.properties
+app/android/key.properties
+app/*.iml
