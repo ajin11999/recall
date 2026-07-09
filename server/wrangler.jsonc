@@ -10,8 +10,7 @@
     {
       "binding": "DB",
       "database_name": "recall",
-      // Placeholder for local dev; replaced with the real id by `wrangler d1 create recall` at deploy time.
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      "database_id": "a98140ab-bf97-4aea-89af-ede9768cdd94"
     }
   ],
   "r2_buckets": [

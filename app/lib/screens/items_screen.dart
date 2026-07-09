@@ -1,0 +1,263 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import '../api.dart';
+import '../models.dart';
+import 'item_detail_screen.dart';
+import 'item_edit_screen.dart';
+
+class ItemsScreen extends StatefulWidget {
+  const ItemsScreen({super.key, required this.api, this.fixedLocation});
+
+  final Api api;
+
+  /// When set, the screen is pushed as "items in this location" and hides the location filter.
+  final Location? fixedLocation;
+
+  @override
+  State<ItemsScreen> createState() => _ItemsScreenState();
+}
+
+class _ItemsScreenState extends State<ItemsScreen> {
+  final _search = TextEditingController();
+  Timer? _debounce;
+  List<Item> _items = [];
+  List<Location> _locations = [];
+  List<Label> _labels = [];
+  int? _locationId;
+  int? _labelId;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _locationId = widget.fixedLocation?.id;
+    _load(withFilters: true);
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load({bool withFilters = false}) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final page = await widget.api.items(
+        q: _search.text.trim(),
+        locationId: _locationId,
+        labelId: _labelId,
+      );
+      if (withFilters) {
+        final results = await Future.wait([widget.api.locations(), widget.api.labels()]);
+        _locations = results[0] as List<Location>;
+        _labels = results[1] as List<Label>;
+      }
+      setState(() {
+        _items = page.items;
+        _loading = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = apiErrorMessage(e);
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  void _onSearchChanged(String _) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), _load);
+  }
+
+  String _locationName(int? id) {
+    if (id == null) return '';
+    for (final l in _locations) {
+      if (l.id == id) return l.name;
+    }
+    return '';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final embedded = widget.fixedLocation == null;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.fixedLocation?.name ?? 'Recall'),
+        automaticallyImplyLeading: !embedded,
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: TextField(
+              controller: _search,
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
+                hintText: 'Search name, description, serial…',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _search.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _search.clear();
+                          _load();
+                        },
+                      ),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 56,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              children: [
+                if (embedded)
+                  _filterChip<int>(
+                    label: 'Location',
+                    value: _locationId,
+                    display: _locationName(_locationId),
+                    entries: _locations.map((l) => MapEntry(l.id, l.name)).toList(),
+                    onChanged: (v) {
+                      setState(() => _locationId = v);
+                      _load();
+                    },
+                  ),
+                if (embedded) const SizedBox(width: 8),
+                _filterChip<int>(
+                  label: 'Label',
+                  value: _labelId,
+                  display: _labels
+                      .where((l) => l.id == _labelId)
+                      .map((l) => l.name)
+                      .join(),
+                  entries: _labels.map((l) => MapEntry(l.id, l.name)).toList(),
+                  onChanged: (v) {
+                    setState(() => _labelId = v);
+                    _load();
+                  },
+                ),
+              ],
+            ),
+          ),
+          Expanded(child: _body()),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final created = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ItemEditScreen(
+                api: widget.api,
+                initialLocationId: widget.fixedLocation?.id,
+              ),
+            ),
+          );
+          if (created == true) _load(withFilters: true);
+        },
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _filterChip<T>({
+    required String label,
+    required T? value,
+    required String display,
+    required List<MapEntry<T, String>> entries,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return PopupMenuButton<T?>(
+      itemBuilder: (_) => [
+        PopupMenuItem<T?>(value: null, child: Text('All', style: TextStyle(color: Theme.of(context).colorScheme.primary))),
+        ...entries.map((e) => PopupMenuItem<T?>(value: e.key, child: Text(e.value))),
+      ],
+      onSelected: onChanged,
+      child: Chip(
+        label: Text(value == null ? label : '$label: $display'),
+        deleteIcon: value == null ? null : const Icon(Icons.close, size: 18),
+        onDeleted: value == null ? null : () => onChanged(null),
+      ),
+    );
+  }
+
+  Widget _body() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!),
+            const SizedBox(height: 8),
+            OutlinedButton(onPressed: () => _load(withFilters: true), child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
+    if (_items.isEmpty) {
+      return const Center(child: Text('No items yet — tap + to add one.'));
+    }
+    return RefreshIndicator(
+      onRefresh: () => _load(withFilters: true),
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: _items.length,
+        itemBuilder: (context, i) {
+          final item = _items[i];
+          final locationName = _locationName(item.locationId);
+          return ListTile(
+            leading: _thumbnail(item),
+            title: Text(item.name),
+            subtitle: Text(
+              [
+                if (locationName.isNotEmpty) locationName,
+                if (item.quantity != 1) 'x${item.quantity}',
+                if (item.warrantyActive) 'warranty',
+              ].join(' · '),
+            ),
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ItemDetailScreen(api: widget.api, itemId: item.id),
+                ),
+              );
+              _load(withFilters: true);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _thumbnail(Item item) {
+    if (item.coverPhotoId == null) {
+      return CircleAvatar(child: Text(item.name.substring(0, 1).toUpperCase()));
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.network(
+        widget.api.photoUrl(item.coverPhotoId!),
+        width: 48,
+        height: 48,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => const Icon(Icons.image_not_supported),
+      ),
+    );
+  }
+}

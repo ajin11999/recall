@@ -73,7 +73,11 @@ export async function verifyPassword(password: string, stored: string): Promise<
 
 export async function authMiddleware(c: Context<App>, next: Next) {
   const header = c.req.header('Authorization') ?? '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  let token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  // Image widgets can't attach headers on every platform, so photo GETs may pass the token as a query param.
+  if (!token && c.req.method === 'GET' && c.req.path.startsWith('/api/photos/')) {
+    token = c.req.query('token') ?? '';
+  }
   if (!token || !(await verifyToken(c.env.SESSION_SECRET, token))) {
     return c.json({ error: 'unauthorized' }, 401);
   }
