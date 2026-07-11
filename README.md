@@ -54,3 +54,56 @@ flutter pub get
 flutter run          # Android device/emulator
 flutter run -d chrome # web
 ```
+
+The server URL and password are entered on the login screen at runtime (stored in secure
+storage), so no build-time configuration is needed to point the app at your Worker.
+
+### Deploy to Android
+
+**Quick install (debug build, no signing setup):**
+
+```sh
+cd app
+flutter build apk --debug
+# installs on a connected device/emulator:
+flutter install
+```
+
+**Release build (for real installs / Play Store):**
+
+1. Generate a signing key (one time, keep this file and its passwords safe — losing it means
+   you can never publish an update to the same app under the same identity):
+
+   ```sh
+   keytool -genkey -v -keystore recall-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias recall
+   ```
+
+2. Copy `app/android/key.properties.example` to `app/android/key.properties` and fill in the
+   passwords/alias and the absolute path to the `.jks` file you just created. This file is
+   gitignored — never commit it.
+
+3. Build:
+
+   ```sh
+   cd app
+   flutter build apk --release          # single universal APK -> build/app/outputs/flutter-apk/app-release.apk
+   # or, smaller per-ABI APKs:
+   flutter build apk --release --split-per-abi
+   # or, for Play Store upload:
+   flutter build appbundle --release    # -> build/app/outputs/bundle/release/app-release.aab
+   ```
+
+   `build.gradle.kts` automatically signs the release build with `key.properties` when present,
+   falling back to the debug key otherwise.
+
+4. Install directly on a device (sideloading, no Play Store):
+
+   ```sh
+   adb install -r build/app/outputs/flutter-apk/app-release.apk
+   ```
+
+   Or transfer the APK to the phone and open it (enable "Install unknown apps" for the file
+   source first).
+
+5. To publish on the Play Store instead, upload the `.aab` from step 3 via the
+   [Play Console](https://play.google.com/console).
