@@ -1,0 +1,16 @@
+{
+  "name": "recall-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Recall workspace project to build and deploy app and server components.",
+  "scripts": {
+    "app:analyze": "cd app && flutter analyze",
+    "app:build-apk": "cd app && flutter build apk",
+    "app:build-web": "cd app && flutter build web",
+    "server:dev": "cd server && npm run dev",
+    "server:deploy": "cd server && npm run deploy",
+    "server:migrate-local": "cd server && npm run migrate:local",
+    "server:migrate-remote": "cd server && npm run migrate:remote",
+    "server:hash-password": "cd server && npm run hash-password"
+  }
+}
