@@ -46,8 +46,17 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(Icons.inventory_2, size: 64, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(height: 8),
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      height: 80,
+                      width: 80,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Text('Recall',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium),
