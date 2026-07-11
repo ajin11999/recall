@@ -53,31 +53,43 @@ class _LocationsScreenState extends State<LocationsScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(existing == null ? 'New location' : 'Edit location'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: name,
-                autofocus: true,
-                decoration: const InputDecoration(labelText: 'Name *'),
-              ),
-              TextField(
-                controller: description,
-                decoration: const InputDecoration(labelText: 'Description'),
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<int?>(
-                initialValue: parent,
-                decoration: const InputDecoration(labelText: 'Inside'),
-                items: [
-                  const DropdownMenuItem<int?>(value: null, child: Text('Top level')),
-                  ..._locations
-                      .where((l) => l.id != existing?.id)
-                      .map((l) => DropdownMenuItem<int?>(value: l.id, child: Text(l.name))),
-                ],
-                onChanged: (v) => setDialogState(() => parent = v),
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: name,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Name *',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: description,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int?>(
+                  initialValue: parent,
+                  decoration: const InputDecoration(
+                    labelText: 'Inside',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                  ),
+                  items: [
+                    const DropdownMenuItem<int?>(value: null, child: Text('Top level')),
+                    ..._locations
+                        .where((l) => l.id != existing?.id)
+                        .map((l) => DropdownMenuItem<int?>(value: l.id, child: Text(l.name))),
+                  ],
+                  onChanged: (v) => setDialogState(() => parent = v),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
@@ -110,11 +122,22 @@ class _LocationsScreenState extends State<LocationsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        title: const Text('Delete Location'),
         content: Text(
             'Delete "${location.name}"? Items inside keep existing but lose this location; child locations move to top level.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );

@@ -60,33 +60,39 @@ class _LabelsScreenState extends State<LabelsScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(existing == null ? 'New label' : 'Edit label'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: name,
-                autofocus: true,
-                decoration: const InputDecoration(labelText: 'Name *'),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                children: _palette
-                    .map(
-                      (hex) => GestureDetector(
-                        onTap: () => setDialogState(() => color = hex),
-                        child: CircleAvatar(
-                          radius: 16,
-                          backgroundColor: colorFromHex(hex),
-                          child: color == hex
-                              ? const Icon(Icons.check, size: 16, color: Colors.white)
-                              : null,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: name,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Name *',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _palette
+                      .map(
+                        (hex) => GestureDetector(
+                          onTap: () => setDialogState(() => color = hex),
+                          child: CircleAvatar(
+                            radius: 16,
+                            backgroundColor: colorFromHex(hex),
+                            child: color == hex
+                                ? const Icon(Icons.check, size: 16, color: Colors.white)
+                                : null,
+                          ),
                         ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
+                      )
+                      .toList(),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
@@ -115,10 +121,21 @@ class _LabelsScreenState extends State<LabelsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        title: const Text('Delete Label'),
         content: Text('Delete label "${label.name}"? It will be removed from all items.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );

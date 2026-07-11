@@ -98,27 +98,37 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
   }
 
   Widget _dateField(String label, DateTime? value, ValueChanged<DateTime?> onChanged) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
-      subtitle: Text(value == null ? 'Not set' : DateFormat('yyyy-MM-dd').format(value)),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (value != null)
-            IconButton(icon: const Icon(Icons.clear), onPressed: () => onChanged(null)),
-          const Icon(Icons.calendar_today),
-        ],
+    final controller = TextEditingController(
+      text: value == null ? '' : DateFormat('yyyy-MM-dd').format(value),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: TextFormField(
+        controller: controller,
+        readOnly: true,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+          ),
+          prefixIcon: const Icon(Icons.calendar_today),
+          suffixIcon: value != null
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => onChanged(null),
+                )
+              : null,
+        ),
+        onTap: () async {
+          final picked = await showDatePicker(
+            context: context,
+            initialDate: value ?? DateTime.now(),
+            firstDate: DateTime(1990),
+            lastDate: DateTime(2100),
+          );
+          if (picked != null) onChanged(picked);
+        },
       ),
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: value ?? DateTime.now(),
-          firstDate: DateTime(1990),
-          lastDate: DateTime(2100),
-        );
-        if (picked != null) onChanged(picked);
-      },
     );
   }
 
@@ -133,13 +143,19 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
           children: [
             TextFormField(
               controller: _name,
-              decoration: const InputDecoration(labelText: 'Name *', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'Name *',
+                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+              ),
               validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _description,
-              decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+              ),
               maxLines: 2,
             ),
             const SizedBox(height: 12),
@@ -149,14 +165,20 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
                   child: TextFormField(
                     controller: _quantity,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Quantity', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                      labelText: 'Quantity',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextFormField(
                     controller: _serial,
-                    decoration: const InputDecoration(labelText: 'Serial number', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                      labelText: 'Serial number',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                    ),
                   ),
                 ),
               ],
@@ -164,18 +186,29 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
             const SizedBox(height: 12),
             DropdownButtonFormField<int?>(
               initialValue: _locationId,
-              decoration: const InputDecoration(labelText: 'Location', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'Location',
+                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+              ),
               items: [
                 const DropdownMenuItem<int?>(value: null, child: Text('No location')),
                 ..._locations.map((l) => DropdownMenuItem<int?>(value: l.id, child: Text(l.name))),
               ],
               onChanged: (v) => setState(() => _locationId = v),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             if (_labels.isNotEmpty) ...[
-              Text('Labels', style: Theme.of(context).textTheme.titleSmall),
+              Text(
+                'Labels',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
+                runSpacing: 8,
                 children: _labels
                     .map(
                       (l) => FilterChip(
@@ -192,38 +225,69 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
                     )
                     .toList(),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
             ],
-            Text('Purchase & warranty', style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              'Purchase & warranty',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: TextFormField(
                     controller: _price,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Price', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                      labelText: 'Price',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextFormField(
                     controller: _from,
-                    decoration: const InputDecoration(labelText: 'Purchased from', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                      labelText: 'Purchased from',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                    ),
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 6),
             _dateField('Purchase date', _purchaseDate, (v) => setState(() => _purchaseDate = v)),
             _dateField('Warranty until', _warrantyUntil, (v) => setState(() => _warrantyUntil = v)),
+            const SizedBox(height: 6),
             TextFormField(
               controller: _notes,
-              decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+              ),
               maxLines: 3,
             ),
             const SizedBox(height: 24),
-            FilledButton(
+            FilledButton.icon(
               onPressed: _busy ? null : _save,
-              child: Text(widget.item == null ? 'Create item' : 'Save changes'),
+              icon: _busy
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.save),
+              label: Text(widget.item == null ? 'Create item' : 'Save changes'),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ],
         ),

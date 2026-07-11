@@ -64,12 +64,21 @@ class SettingsScreen extends StatelessWidget {
               final ok = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
+                  title: const Text('Log Out'),
                   content: const Text('Log out? Scheduled reminders will be cancelled.'),
                   actions: [
                     TextButton(
-                        onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
                     FilledButton(
-                        onPressed: () => Navigator.pop(context, true), child: const Text('Log out')),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.error,
+                        foregroundColor: Theme.of(context).colorScheme.onError,
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Log out'),
+                    ),
                   ],
                 ),
               );

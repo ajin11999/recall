@@ -98,24 +98,30 @@ class _ItemsScreenState extends State<ItemsScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: TextField(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: SearchBar(
               controller: _search,
               onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: 'Search name, description, serial…',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _search.text.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _search.clear();
-                          _load();
-                        },
-                      ),
-                border: const OutlineInputBorder(),
-                isDense: true,
+              hintText: 'Search name, description, serial…',
+              leading: const Icon(Icons.search),
+              trailing: [
+                if (_search.text.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      _search.clear();
+                      _load();
+                    },
+                  ),
+              ],
+              elevation: WidgetStateProperty.all(0.0),
+              backgroundColor: WidgetStateProperty.all(
+                Theme.of(context).colorScheme.surfaceContainerHigh,
+              ),
+              shape: WidgetStateProperty.all(
+                const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
               ),
             ),
           ),
@@ -183,13 +189,17 @@ class _ItemsScreenState extends State<ItemsScreen> {
   }) {
     return PopupMenuButton<T?>(
       itemBuilder: (_) => [
-        PopupMenuItem<T?>(value: null, child: Text('All', style: TextStyle(color: Theme.of(context).colorScheme.primary))),
+        PopupMenuItem<T?>(
+          value: null,
+          child: Text('All', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+        ),
         ...entries.map((e) => PopupMenuItem<T?>(value: e.key, child: Text(e.value))),
       ],
       onSelected: onChanged,
-      child: Chip(
+      child: FilterChip(
+        selected: value != null,
         label: Text(value == null ? label : '$label: $display'),
-        deleteIcon: value == null ? null : const Icon(Icons.close, size: 18),
+        onSelected: (_) {},
         onDeleted: value == null ? null : () => onChanged(null),
       ),
     );
@@ -246,18 +256,33 @@ class _ItemsScreenState extends State<ItemsScreen> {
   }
 
   Widget _thumbnail(Item item) {
-    if (item.coverPhotoId == null) {
-      return CircleAvatar(child: Text(item.name.substring(0, 1).toUpperCase()));
-    }
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Image.network(
-        widget.api.photoUrl(item.coverPhotoId!),
-        width: 48,
-        height: 48,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => const Icon(Icons.image_not_supported),
+    final hasPhoto = item.coverPhotoId != null;
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: hasPhoto ? Colors.transparent : Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(12),
       ),
+      clipBehavior: Clip.antiAlias,
+      child: hasPhoto
+          ? Image.network(
+              widget.api.photoUrl(item.coverPhotoId!),
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => const Icon(Icons.image_not_supported),
+            )
+          : Center(
+              child: Text(
+                item.name.substring(0, 1).toUpperCase(),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ),
     );
   }
 }

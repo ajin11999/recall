@@ -55,11 +55,21 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: notes, decoration: const InputDecoration(labelText: 'Notes')),
+            TextField(
+              controller: notes,
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+              ),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: cost,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Cost'),
+              decoration: const InputDecoration(
+                labelText: 'Cost',
+                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+              ),
             ),
           ],
         ),

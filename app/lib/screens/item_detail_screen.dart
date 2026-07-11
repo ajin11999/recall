@@ -98,14 +98,78 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        title: const Text('Confirm'),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
     return result == true;
+  }
+
+  void _showAddPhotoBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Add Photo',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Take photo (Camera)'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _addPhoto(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Choose from gallery'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _addPhoto(ImageSource.gallery);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _addOrEditSchedule({MaintenanceSchedule? existing}) async {
@@ -124,16 +188,33 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: name, decoration: const InputDecoration(labelText: 'Task name *')),
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(
+                    labelText: 'Task name *',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: interval,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Repeat every (days) *'),
+                  decoration: const InputDecoration(
+                    labelText: 'Repeat every (days) *',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-                TextField(controller: notes, decoration: const InputDecoration(labelText: 'Notes')),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: notes,
+                  decoration: const InputDecoration(
+                    labelText: 'Notes',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
                 const SizedBox(height: 8),
                 ListTile(
-                  contentPadding: EdgeInsets.zero,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                   title: const Text('Next due'),
                   subtitle: Text(DateFormat('yyyy-MM-dd').format(due)),
                   trailing: const Icon(Icons.calendar_today),
@@ -187,11 +268,21 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: notes, decoration: const InputDecoration(labelText: 'Notes')),
+            TextField(
+              controller: notes,
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: cost,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Cost'),
+              decoration: const InputDecoration(
+                labelText: 'Cost',
+                border: OutlineInputBorder(),
+              ),
             ),
           ],
         ),
@@ -270,6 +361,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                       if (item.notes?.isNotEmpty == true) ...[
                         const SizedBox(height: 16),
                         Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+                            borderRadius: const BorderRadius.all(Radius.circular(16)),
+                          ),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
@@ -322,22 +418,38 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               ),
             ),
           ),
-          Column(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => _addPhoto(ImageSource.camera),
-                  child: const Icon(Icons.photo_camera),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: InkWell(
+              onTap: _showAddPhotoBottomSheet,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.add_a_photo_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Add Photo',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => _addPhoto(ImageSource.gallery),
-                  child: const Icon(Icons.photo_library),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
@@ -345,17 +457,29 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   }
 
   Widget _infoCard(Item item) {
-    final rows = <MapEntry<String, String>>[
-      if (_locationName != null) MapEntry('Location', _locationName!),
-      MapEntry('Quantity', item.quantity.toString()),
-      if (item.serialNumber?.isNotEmpty == true) MapEntry('Serial number', item.serialNumber!),
-      if (item.purchasePrice != null) MapEntry('Price', item.purchasePrice!.toString()),
-      if (item.purchaseDate != null) MapEntry('Purchased', item.purchaseDate!),
-      if (item.purchasedFrom?.isNotEmpty == true) MapEntry('From', item.purchasedFrom!),
+    final List<(IconData, String, String)> details = [
+      if (_locationName != null) (Icons.place_outlined, 'Location', _locationName!),
+      (Icons.layers_outlined, 'Quantity', item.quantity.toString()),
+      if (item.serialNumber?.isNotEmpty == true) (Icons.tag, 'Serial number', item.serialNumber!),
+      if (item.purchasePrice != null) (Icons.sell_outlined, 'Price', '\$${item.purchasePrice!.toStringAsFixed(2)}'),
+      if (item.purchaseDate != null) (Icons.calendar_today_outlined, 'Purchased', item.purchaseDate!),
+      if (item.purchasedFrom?.isNotEmpty == true) (Icons.storefront_outlined, 'Purchased From', item.purchasedFrom!),
       if (item.warrantyUntil != null)
-        MapEntry('Warranty', '${item.warrantyUntil!}${item.warrantyActive ? ' (active)' : ' (expired)'}'),
+        (
+          Icons.verified_user_outlined,
+          'Warranty',
+          '${item.warrantyUntil!} ${item.warrantyActive ? '(Active)' : '(Expired)'}'
+        ),
     ];
+
+    if (details.isEmpty) return const SizedBox.shrink();
+
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -363,17 +487,50 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           children: [
             Text('Details', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            ...rows.map(
-              (r) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(width: 120, child: Text(r.key, style: const TextStyle(fontWeight: FontWeight.w500))),
-                    Expanded(child: Text(r.value)),
-                  ],
-                ),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: details.length,
+              separatorBuilder: (context, index) => Divider(
+                height: 16,
+                color: Theme.of(context).colorScheme.outlineVariant.withAlpha(128),
               ),
+              itemBuilder: (context, idx) {
+                final (icon, title, val) = details[idx];
+                final isWarrantyExpired = title == 'Warranty' && !item.warrantyActive;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Icon(icon, size: 20, color: Theme.of(context).colorScheme.outline),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              val,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: isWarrantyExpired ? Theme.of(context).colorScheme.error : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -383,6 +540,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
   Widget _maintenanceCard(Item item) {
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -391,14 +553,31 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             Row(
               children: [
                 Expanded(child: Text('Maintenance', style: Theme.of(context).textTheme.titleMedium)),
-                IconButton(icon: const Icon(Icons.add), onPressed: () => _addOrEditSchedule()),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  color: Theme.of(context).colorScheme.primary,
+                  onPressed: () => _addOrEditSchedule(),
+                ),
               ],
             ),
-            if (item.schedules.isEmpty) const Text('No schedules.'),
+            if (item.schedules.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Text(
+                    'No schedules.',
+                    style: TextStyle(color: Theme.of(context).colorScheme.outline),
+                  ),
+                ),
+              ),
             ...item.schedules.map(
               (s) => ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(s.name),
+                leading: Icon(
+                  s.isOverdue ? Icons.warning_amber_rounded : Icons.schedule_rounded,
+                  color: s.isOverdue ? Theme.of(context).colorScheme.error : Theme.of(context).colorScheme.primary,
+                ),
+                title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.w500)),
                 subtitle: Text(
                   'Every ${s.intervalDays} days · due ${s.nextDueDate}${s.isOverdue ? ' (overdue)' : ''}',
                   style: s.isOverdue ? TextStyle(color: Theme.of(context).colorScheme.error) : null,
