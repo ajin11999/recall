@@ -107,3 +107,22 @@ flutter install
 
 5. To publish on the Play Store instead, upload the `.aab` from step 3 via the
    [Play Console](https://play.google.com/console).
+
+### Automated Release (GitHub Actions)
+
+When you tag a commit and push the tag to GitHub, a GitHub Actions workflow will automatically build the release APKs per ABI and attach them to a new GitHub Release.
+
+To trigger a release:
+
+1. Create an annotated tag (e.g., `v1.0.0`):
+
+   ```sh
+   git tag -a v1.0.0 -m "Release version 1.0.0"
+   ```
+
+2. Push the tag to GitHub:
+
+   ```sh
+   git push origin v1.0.0
+   ```
+   (Or use `git push --tags` to push all local tags).
