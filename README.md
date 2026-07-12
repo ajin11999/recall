@@ -28,6 +28,14 @@ npx wrangler secret put SESSION_SECRET   # any long random string
 npm run deploy
 ```
 
+### Redeploy
+
+To redeploy the server after making changes, run this single command from the project root:
+
+```sh
+bun run server:deploy
+```
+
 ## API
 
 All endpoints under `/api` require `Authorization: Bearer <token>` except login.
