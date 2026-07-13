@@ -41,9 +41,12 @@ dependencies:
   timezone: ^0.11.1
   flutter_timezone: ^5.1.0
   intl: ^0.20.3
+  cached_network_image: ^3.4.1
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to

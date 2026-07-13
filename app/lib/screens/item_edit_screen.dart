@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../api.dart';
 import '../models.dart';
+import '../widgets/location_picker_dialog.dart';
 
 class ItemEditScreen extends StatefulWidget {
   const ItemEditScreen({super.key, required this.api, this.item, this.initialLocationId});
@@ -184,17 +185,31 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<int?>(
-              initialValue: _locationId,
-              decoration: const InputDecoration(
-                labelText: 'Location',
-                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+            TextFormField(
+              readOnly: true,
+              controller: TextEditingController(
+                text: _locationId == null ? 'No location' : _locations.pathFor(_locationId),
               ),
-              items: [
-                const DropdownMenuItem<int?>(value: null, child: Text('No location')),
-                ..._locations.map((l) => DropdownMenuItem<int?>(value: l.id, child: Text(l.name))),
-              ],
-              onChanged: (v) => setState(() => _locationId = v),
+              decoration: InputDecoration(
+                labelText: 'Location',
+                border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                suffixIcon: _locationId != null
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => setState(() => _locationId = null),
+                      )
+                    : const Icon(Icons.arrow_drop_down),
+              ),
+              onTap: () async {
+                final id = await showLocationPicker(
+                  context: context,
+                  locations: _locations,
+                  initialLocationId: _locationId,
+                );
+                if (id != null) {
+                  setState(() => _locationId = id == -1 ? null : id);
+                }
+              },
             ),
             const SizedBox(height: 16),
             if (_labels.isNotEmpty) ...[

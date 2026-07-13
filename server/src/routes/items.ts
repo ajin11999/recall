@@ -55,9 +55,12 @@ export const items = new Hono<App>()
     const where: string[] = [];
     const params: unknown[] = [];
     if (q) {
-      where.push('(i.name LIKE ? OR i.description LIKE ? OR i.serial_number LIKE ?)');
-      const like = `%${q}%`;
-      params.push(like, like, like);
+      const words = q.trim().split(/\s+/);
+      for (const word of words) {
+        where.push('(i.name LIKE ? OR i.description LIKE ? OR i.serial_number LIKE ?)');
+        const like = `%${word}%`;
+        params.push(like, like, like);
+      }
     }
     if (locationId) {
       where.push('i.location_id = ?');

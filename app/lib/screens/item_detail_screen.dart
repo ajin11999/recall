@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -53,10 +54,17 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   String? get _locationName {
     final id = _item?.locationId;
     if (id == null) return null;
-    for (final l in _locations) {
-      if (l.id == id) return l.name;
+    
+    final map = {for (final l in _locations) l.id: l};
+    var curr = map[id];
+    if (curr == null) return null;
+    
+    final path = <String>[];
+    while (curr != null) {
+      path.add(curr.name);
+      curr = map[curr.parentId];
     }
-    return null;
+    return path.reversed.join(' > ');
   }
 
   Future<void> _addPhoto(ImageSource source) async {
@@ -399,19 +407,19 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   context: context,
                   builder: (_) => Dialog(
                     child: InteractiveViewer(
-                      child: Image.network(widget.api.photoUrl(p.id), fit: BoxFit.contain),
+                      child: CachedNetworkImage(imageUrl: widget.api.photoUrl(p.id), fit: BoxFit.contain),
                     ),
                   ),
                 ),
                 onLongPress: () => _deletePhoto(p),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    widget.api.photoUrl(p.id),
+                  child: CachedNetworkImage(
+                    imageUrl: widget.api.photoUrl(p.id),
                     width: 120,
                     height: 120,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
+                    errorWidget: (context, url, error) =>
                         const SizedBox(width: 120, child: Icon(Icons.broken_image)),
                   ),
                 ),

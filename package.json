@@ -5,6 +5,8 @@
   "description": "Recall workspace project to build and deploy app and server components.",
   "scripts": {
     "app:analyze": "cd app && flutter analyze",
+    "app:test": "cd app && flutter test",
+    "app:test-ui": "cd app && flutter test integration_test",
     "app:build-apk": "cd app && flutter build apk",
     "app:build-web": "cd app && flutter build web",
     "server:dev": "cd server && npm run dev",

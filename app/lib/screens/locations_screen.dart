@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../models.dart';
+import '../widgets/location_picker_dialog.dart';
 import 'items_screen.dart';
 
 class LocationsScreen extends StatefulWidget {
@@ -74,19 +75,32 @@ class _LocationsScreenState extends State<LocationsScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<int?>(
-                  initialValue: parent,
-                  decoration: const InputDecoration(
-                    labelText: 'Inside',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                TextFormField(
+                  readOnly: true,
+                  controller: TextEditingController(
+                    text: parent == null ? 'Top level' : _locations.pathFor(parent),
                   ),
-                  items: [
-                    const DropdownMenuItem<int?>(value: null, child: Text('Top level')),
-                    ..._locations
-                        .where((l) => l.id != existing?.id)
-                        .map((l) => DropdownMenuItem<int?>(value: l.id, child: Text(l.name))),
-                  ],
-                  onChanged: (v) => setDialogState(() => parent = v),
+                  decoration: InputDecoration(
+                    labelText: 'Inside',
+                    border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                    suffixIcon: parent != null
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () => setDialogState(() => parent = null),
+                          )
+                        : const Icon(Icons.arrow_drop_down),
+                  ),
+                  onTap: () async {
+                    final id = await showLocationPicker(
+                      context: context,
+                      locations: _locations,
+                      initialLocationId: parent,
+                      excludeLocationId: existing?.id,
+                    );
+                    if (id != null) {
+                      setDialogState(() => parent = id == -1 ? null : id);
+                    }
+                  },
                 ),
               ],
             ),
@@ -152,28 +166,9 @@ class _LocationsScreenState extends State<LocationsScreen> {
     }
   }
 
-  /// Flattens the location tree depth-first, returning each with its depth.
-  List<(Location, int)> _tree() {
-    final byParent = <int?, List<Location>>{};
-    for (final l in _locations) {
-      byParent.putIfAbsent(l.parentId, () => []).add(l);
-    }
-    final out = <(Location, int)>[];
-    void walk(int? parentId, int depth, Set<int> seen) {
-      for (final l in byParent[parentId] ?? const <Location>[]) {
-        if (!seen.add(l.id)) continue;
-        out.add((l, depth));
-        walk(l.id, depth + 1, seen);
-      }
-    }
-
-    walk(null, 0, <int>{});
-    return out;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final rows = _tree();
+    final rows = _locations.buildTree();
     return Scaffold(
       appBar: AppBar(title: const Text('Locations'), automaticallyImplyLeading: false),
       body: _loading
@@ -190,6 +185,8 @@ class _LocationsScreenState extends State<LocationsScreen> {
                         itemBuilder: (context, i) {
                           final (location, depth) = rows[i];
                           return ListTile(
+                            dense: true,
+                            visualDensity: VisualDensity.compact,
                             contentPadding: EdgeInsets.only(left: 16.0 + depth * 24, right: 8),
                             leading: Icon(depth == 0 ? Icons.home_work_outlined : Icons.subdirectory_arrow_right),
                             title: Text(location.name),

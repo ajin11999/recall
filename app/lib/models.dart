@@ -189,3 +189,35 @@ class ItemPage {
         total: j['total'] as int,
       );
 }
+
+extension LocationListX on List<Location> {
+  String pathFor(int? id) {
+    if (id == null) return '';
+    final map = {for (final l in this) l.id: l};
+    var curr = map[id];
+    if (curr == null) return '';
+    final path = <String>[];
+    while (curr != null) {
+      path.add(curr.name);
+      curr = map[curr.parentId];
+    }
+    return path.reversed.join(' > ');
+  }
+
+  List<(Location, int)> buildTree() {
+    final byParent = <int?, List<Location>>{};
+    for (final l in this) {
+      byParent.putIfAbsent(l.parentId, () => []).add(l);
+    }
+    final out = <(Location, int)>[];
+    void walk(int? parentId, int depth, Set<int> seen) {
+      for (final l in byParent[parentId] ?? const <Location>[]) {
+        if (!seen.add(l.id)) continue;
+        out.add((l, depth));
+        walk(l.id, depth + 1, seen);
+      }
+    }
+    walk(null, 0, <int>{});
+    return out;
+  }
+}

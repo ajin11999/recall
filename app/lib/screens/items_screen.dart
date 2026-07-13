@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../api.dart';
 import '../models.dart';
@@ -187,7 +188,9 @@ class _ItemsScreenState extends State<ItemsScreen> {
     required List<MapEntry<T, String>> entries,
     required ValueChanged<T?> onChanged,
   }) {
+    final key = GlobalKey<PopupMenuButtonState<T?>>();
     return PopupMenuButton<T?>(
+      key: key,
       itemBuilder: (_) => [
         PopupMenuItem<T?>(
           value: null,
@@ -199,7 +202,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
       child: FilterChip(
         selected: value != null,
         label: Text(value == null ? label : '$label: $display'),
-        onSelected: (_) {},
+        onSelected: (_) => key.currentState?.showButtonMenu(),
         onDeleted: value == null ? null : () => onChanged(null),
       ),
     );
@@ -266,12 +269,12 @@ class _ItemsScreenState extends State<ItemsScreen> {
       ),
       clipBehavior: Clip.antiAlias,
       child: hasPhoto
-          ? Image.network(
-              widget.api.photoUrl(item.coverPhotoId!),
+          ? CachedNetworkImage(
+              imageUrl: widget.api.photoUrl(item.coverPhotoId!),
               width: 48,
               height: 48,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => const Icon(Icons.image_not_supported),
+              errorWidget: (context, url, error) => const Icon(Icons.image_not_supported),
             )
           : Center(
               child: Text(
