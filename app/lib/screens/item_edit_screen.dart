@@ -122,32 +122,56 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
     );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: TextFormField(
-        controller: controller,
-        readOnly: true,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
           ),
-          prefixIcon: const Icon(Icons.calendar_today),
-          suffixIcon: value != null
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => onChanged(null),
-                )
-              : null,
-        ),
-        onTap: () async {
-          final picked = await showDatePicker(
-            context: context,
-            initialDate: value ?? DateTime.now(),
-            firstDate: DateTime(1990),
-            lastDate: DateTime(2100),
-          );
-          if (picked != null) onChanged(picked);
-        },
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: controller,
+            readOnly: true,
+            decoration: InputDecoration(
+              hintText: 'Select date',
+              border: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+              ),
+              prefixIcon: const Icon(Icons.calendar_today),
+              suffixIcon: value != null
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () => onChanged(null),
+                    )
+                  : null,
+            ),
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: value ?? DateTime.now(),
+                firstDate: DateTime(1990),
+                lastDate: DateTime(2100),
+              );
+              if (picked != null) onChanged(picked);
+            },
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildField(String label, Widget child) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+        ),
+        const SizedBox(height: 8),
+        child,
+      ],
     );
   }
 
@@ -239,11 +263,13 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
                                 child: Material(
                                   color: Colors.black45,
                                   shape: const CircleBorder(),
-                                  child: IconButton(
-                                    icon: const Icon(Icons.close, color: Colors.white, size: 16),
-                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () => setState(() => _newPhotos.remove(p)),
+                                  child: InkWell(
+                                    customBorder: const CircleBorder(),
+                                    onTap: () => setState(() => _newPhotos.remove(p)),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(4),
+                                      child: Icon(Icons.close, color: Colors.white, size: 14),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -268,75 +294,85 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
               ),
               const SizedBox(height: 16),
             ],
-            TextFormField(
-              controller: _name,
-              decoration: const InputDecoration(
-                labelText: 'Name *',
-                
+            _buildField(
+              'Name *',
+              TextFormField(
+                controller: _name,
+                decoration: const InputDecoration(
+                  hintText: 'Enter name',
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
               ),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _description,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                
+            _buildField(
+              'Description',
+              TextFormField(
+                controller: _description,
+                decoration: const InputDecoration(
+                  hintText: 'Enter description',
+                ),
+                maxLines: 2,
               ),
-              maxLines: 2,
             ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: TextFormField(
-                    controller: _quantity,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [ThousandsFormatter()],
-                    decoration: const InputDecoration(
-                      labelText: 'Quantity',
-                      
+                  child: _buildField(
+                    'Quantity',
+                    TextFormField(
+                      controller: _quantity,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [ThousandsFormatter()],
+                      decoration: const InputDecoration(
+                        hintText: '1',
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TextFormField(
-                    controller: _serial,
-                    decoration: const InputDecoration(
-                      labelText: 'Serial number',
-                      
+                  child: _buildField(
+                    'Serial number',
+                    TextFormField(
+                      controller: _serial,
+                      decoration: const InputDecoration(
+                        hintText: 'Serial',
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              readOnly: true,
-              controller: TextEditingController(
-                text: _locationId == null ? 'No location' : _locations.pathFor(_locationId),
+            _buildField(
+              'Location',
+              TextFormField(
+                readOnly: true,
+                controller: TextEditingController(
+                  text: _locationId == null ? 'No location' : _locations.pathFor(_locationId),
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Select location',
+                  suffixIcon: _locationId != null
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () => setState(() => _locationId = null),
+                        )
+                      : const Icon(Icons.arrow_drop_down),
+                ),
+                onTap: () async {
+                  final id = await showLocationPicker(
+                    context: context,
+                    locations: _locations,
+                    initialLocationId: _locationId,
+                  );
+                  if (id != null) {
+                    setState(() => _locationId = id == -1 ? null : id);
+                  }
+                },
               ),
-              decoration: InputDecoration(
-                labelText: 'Location',
-                
-                suffixIcon: _locationId != null
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => setState(() => _locationId = null),
-                      )
-                    : const Icon(Icons.arrow_drop_down),
-              ),
-              onTap: () async {
-                final id = await showLocationPicker(
-                  context: context,
-                  locations: _locations,
-                  initialLocationId: _locationId,
-                );
-                if (id != null) {
-                  setState(() => _locationId = id == -1 ? null : id);
-                }
-              },
             ),
             const SizedBox(height: 16),
             if (_labels.isNotEmpty) ...[
@@ -380,23 +416,27 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
             Row(
               children: [
                 Expanded(
-                  child: TextFormField(
-                    controller: _price,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [ThousandsFormatter()],
-                    decoration: const InputDecoration(
-                      labelText: 'Price',
-                      
+                  child: _buildField(
+                    'Price',
+                    TextFormField(
+                      controller: _price,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [ThousandsFormatter()],
+                      decoration: const InputDecoration(
+                        hintText: '0.00',
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TextFormField(
-                    controller: _from,
-                    decoration: const InputDecoration(
-                      labelText: 'Purchased from',
-                      
+                  child: _buildField(
+                    'Purchased from',
+                    TextFormField(
+                      controller: _from,
+                      decoration: const InputDecoration(
+                        hintText: 'Store name',
+                      ),
                     ),
                   ),
                 ),
@@ -406,13 +446,15 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
             _dateField('Purchase date', _purchaseDate, (v) => setState(() => _purchaseDate = v)),
             _dateField('Warranty until', _warrantyUntil, (v) => setState(() => _warrantyUntil = v)),
             const SizedBox(height: 6),
-            TextFormField(
-              controller: _notes,
-              decoration: const InputDecoration(
-                labelText: 'Notes',
-                
+            _buildField(
+              'Notes',
+              TextFormField(
+                controller: _notes,
+                decoration: const InputDecoration(
+                  hintText: 'Additional notes',
+                ),
+                maxLines: 3,
               ),
-              maxLines: 3,
             ),
             const SizedBox(height: 24),
             FilledButton.icon(

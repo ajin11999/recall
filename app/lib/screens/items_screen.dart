@@ -189,23 +189,33 @@ class _ItemsScreenState extends State<ItemsScreen> {
     required List<MapEntry<T, String>> entries,
     required ValueChanged<T?> onChanged,
   }) {
-    final key = GlobalKey<PopupMenuButtonState<T?>>();
-    return PopupMenuButton<T?>(
-      key: key,
-      itemBuilder: (_) => [
-        PopupMenuItem<T?>(
-          value: null,
-          child: Text('All', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
-        ),
-        ...entries.map((e) => PopupMenuItem<T?>(value: e.key, child: Text(e.value))),
-      ],
-      onSelected: onChanged,
-      child: FilterChip(
-        selected: value != null,
-        label: Text(value == null ? label : '$label: $display'),
-        onSelected: (_) => key.currentState?.showButtonMenu(),
-        onDeleted: value == null ? null : () => onChanged(null),
-      ),
+    return FilterChip(
+      selected: value != null,
+      label: Text(value == null ? label : '$label: $display'),
+      onSelected: (_) async {
+        final result = await showModalBottomSheet<List<T?>>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          builder: (context) => Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height * 0.6,
+              child: _FilterModal<T>(
+                label: label,
+                entries: entries,
+                currentValue: value,
+              ),
+            ),
+          ),
+        );
+        if (result != null) {
+          onChanged(result.first);
+        }
+      },
+      onDeleted: value == null ? null : () => onChanged(null),
     );
   }
 
@@ -287,6 +297,104 @@ class _ItemsScreenState extends State<ItemsScreen> {
                 ),
               ),
             ),
+    );
+  }
+}
+
+class _FilterModal<T> extends StatefulWidget {
+  final String label;
+  final List<MapEntry<T, String>> entries;
+  final T? currentValue;
+
+  const _FilterModal({
+    required this.label,
+    required this.entries,
+    this.currentValue,
+  });
+
+  @override
+  State<_FilterModal<T>> createState() => _FilterModalState<T>();
+}
+
+class _FilterModalState<T> extends State<_FilterModal<T>> {
+  final _searchController = TextEditingController();
+  late List<MapEntry<T, String>> _filteredEntries;
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredEntries = widget.entries;
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredEntries = widget.entries
+          .where((e) => e.value.toLowerCase().contains(query))
+          .toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Select ${widget.label}',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search ${widget.label}...',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: ListView(
+            children: [
+              ListTile(
+                title: Text('All', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+                onTap: () => Navigator.pop(context, <T?>[null]),
+                trailing: widget.currentValue == null ? const Icon(Icons.check) : null,
+              ),
+              ..._filteredEntries.map((e) => ListTile(
+                title: Text(e.value),
+                onTap: () => Navigator.pop(context, <T?>[e.key]),
+                trailing: widget.currentValue == e.key ? const Icon(Icons.check) : null,
+              )),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

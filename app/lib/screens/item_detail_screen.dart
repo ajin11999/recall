@@ -7,6 +7,7 @@ import '../api.dart';
 import '../models.dart';
 import '../notifications.dart';
 import 'item_edit_screen.dart';
+import 'items_screen.dart';
 
 class ItemDetailScreen extends StatefulWidget {
   const ItemDetailScreen({super.key, required this.api, required this.itemId});
@@ -541,37 +542,61 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               itemBuilder: (context, idx) {
                 final (icon, title, val) = details[idx];
                 final isWarrantyExpired = title == 'Warranty' && !item.warrantyActive;
+                Widget row = Row(
+                  children: [
+                    Icon(icon, size: 20, color: Theme.of(context).colorScheme.outline),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            val,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: isWarrantyExpired ? Theme.of(context).colorScheme.error : (title == 'Location' ? Theme.of(context).colorScheme.primary : null),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (title == 'Location')
+                      Icon(Icons.chevron_right, size: 20, color: Theme.of(context).colorScheme.outline),
+                  ],
+                );
+
+                if (title == 'Location') {
+                  return InkWell(
+                    onTap: () {
+                      final locs = _locations.where((l) => l.id == item.locationId);
+                      if (locs.isNotEmpty) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ItemsScreen(api: widget.api, fixedLocation: locs.first),
+                          ),
+                        );
+                      }
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: row,
+                    ),
+                  );
+                }
+
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      Icon(icon, size: 20, color: Theme.of(context).colorScheme.outline),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context).colorScheme.outline,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              val,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
-                                color: isWarrantyExpired ? Theme.of(context).colorScheme.error : null,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                  child: row,
                 );
               },
             ),
