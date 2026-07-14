@@ -393,83 +393,118 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     );
   }
 
+  Future<void> _onReorderPhotos(int oldIndex, int newIndex) async {
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+    setState(() {
+      final photo = _item!.photos.removeAt(oldIndex);
+      _item!.photos.insert(newIndex, photo);
+    });
+    try {
+      final photoIds = _item!.photos.map((p) => p.id).toList();
+      await widget.api.reorderPhotos(_item!.id, photoIds);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+      }
+    }
+  }
+
   Widget _photoStrip(Item item) {
     return SizedBox(
       height: 120,
-      child: ListView(
+      child: ReorderableListView(
         scrollDirection: Axis.horizontal,
-        children: [
-          ...item.photos.map(
-            (p) => Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: GestureDetector(
-                onTap: () => showDialog(
-                  context: context,
-                  builder: (_) => Dialog(
-                    child: InteractiveViewer(
-                      child: CachedNetworkImage(imageUrl: widget.api.photoUrl(p.id), fit: BoxFit.contain),
-                    ),
+        onReorder: _onReorderPhotos,
+        header: const SizedBox(width: 16),
+        footer: Padding(
+          padding: const EdgeInsets.only(left: 8, right: 16),
+          child: InkWell(
+            key: const ValueKey('add_photo_btn'),
+            onTap: _showAddPhotoBottomSheet,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.add_a_photo_outlined,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
-                ),
-                onLongPress: () => _deletePhoto(p),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: CachedNetworkImage(
-                    imageUrl: widget.api.photoUrl(p.id),
-                    width: 120,
-                    height: 120,
-                    fit: BoxFit.cover,
-                    errorWidget: (context, url, error) =>
-                        const SizedBox(width: 120, child: Icon(Icons.broken_image)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Add Photo',
+                    style: TextStyle(color: Theme.of(context).colorScheme.primary),
                   ),
-                ),
+                ],
               ),
             ),
           ),
-          Padding(
+        ),
+        children: item.photos.map(
+          (p) => Padding(
+            key: ValueKey(p.id),
             padding: const EdgeInsets.only(right: 8),
-            child: InkWell(
-              onTap: _showAddPhotoBottomSheet,
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                  borderRadius: BorderRadius.circular(12),
+            child: GestureDetector(
+              onTap: () => showDialog(
+                context: context,
+                builder: (_) => Dialog(
+                  child: InteractiveViewer(
+                    child: CachedNetworkImage(imageUrl: widget.api.photoUrl(p.id), fit: BoxFit.contain),
+                  ),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.add_a_photo_outlined,
-                      color: Theme.of(context).colorScheme.primary,
+              ),
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: CachedNetworkImage(
+                      imageUrl: widget.api.photoUrl(p.id),
+                      width: 120,
+                      height: 120,
+                      fit: BoxFit.cover,
+                      errorWidget: (context, url, error) =>
+                          const SizedBox(width: 120, child: Icon(Icons.broken_image)),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Add Photo',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w500,
+                  ),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Material(
+                      color: Colors.black45,
+                      shape: const CircleBorder(),
+                      clipBehavior: Clip.hardEdge,
+                      child: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white, size: 16),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        onPressed: () => _deletePhoto(p),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        ).toList(),
       ),
     );
   }
 
   Widget _infoCard(Item item) {
+    final nf = NumberFormat('#,###');
     final List<(IconData, String, String)> details = [
       if (_locationName != null) (Icons.place_outlined, 'Location', _locationName!),
-      (Icons.layers_outlined, 'Quantity', item.quantity.toString()),
+      (Icons.layers_outlined, 'Quantity', nf.format(item.quantity)),
       if (item.serialNumber?.isNotEmpty == true) (Icons.tag, 'Serial number', item.serialNumber!),
-      if (item.purchasePrice != null) (Icons.sell_outlined, 'Price', '\$${item.purchasePrice!.toStringAsFixed(2)}'),
+      if (item.purchasePrice != null) (Icons.sell_outlined, 'Price', nf.format(item.purchasePrice)),
       if (item.purchaseDate != null) (Icons.calendar_today_outlined, 'Purchased', item.purchaseDate!),
       if (item.purchasedFrom?.isNotEmpty == true) (Icons.storefront_outlined, 'Purchased From', item.purchasedFrom!),
       if (item.warrantyUntil != null)

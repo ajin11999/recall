@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:intl/intl.dart';
 
 import '../api.dart';
 import '../models.dart';
@@ -239,7 +240,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
             subtitle: Text(
               [
                 if (locationName.isNotEmpty) locationName,
-                if (item.quantity != 1) 'x${item.quantity}',
+                if (item.quantity != 1) 'x${NumberFormat('#,###').format(item.quantity)}',
                 if (item.warrantyActive) 'warranty',
               ].join(' · '),
             ),

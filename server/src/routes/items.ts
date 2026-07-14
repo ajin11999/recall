@@ -23,7 +23,7 @@ async function getItemDetail(db: Bindings['DB'], id: number) {
     db.prepare(
       'SELECT l.* FROM labels l JOIN item_labels il ON il.label_id = l.id WHERE il.item_id = ? ORDER BY l.name'
     ).bind(id),
-    db.prepare('SELECT id, item_id, content_type, size, created_at FROM photos WHERE item_id = ? ORDER BY id').bind(id),
+    db.prepare('SELECT id, item_id, content_type, size, created_at FROM photos WHERE item_id = ? ORDER BY sort_order ASC, id ASC').bind(id),
     db.prepare('SELECT * FROM maintenance_schedules WHERE item_id = ? ORDER BY next_due_date').bind(id),
   ]);
   const row = item.results[0];
@@ -75,7 +75,7 @@ export const items = new Hono<App>()
     const [list, count] = await c.env.DB.batch([
       c.env.DB.prepare(
         `SELECT i.*,
-           (SELECT p.id FROM photos p WHERE p.item_id = i.id ORDER BY p.id LIMIT 1) AS cover_photo_id,
+           (SELECT p.id FROM photos p WHERE p.item_id = i.id ORDER BY p.sort_order ASC, p.id ASC LIMIT 1) AS cover_photo_id,
            (SELECT GROUP_CONCAT(il.label_id) FROM item_labels il WHERE il.item_id = i.id) AS label_ids
          FROM items i ${whereSql}
          ORDER BY i.updated_at DESC

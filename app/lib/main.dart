@@ -47,12 +47,33 @@ class _RecallAppState extends State<RecallApp> {
     setState(() => _api = null);
   }
 
+  InputDecorationTheme _inputTheme() {
+    return InputDecorationTheme(
+      filled: true,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Recall',
-      theme: ThemeData(colorSchemeSeed: Colors.teal, brightness: Brightness.light),
-      darkTheme: ThemeData(colorSchemeSeed: Colors.teal, brightness: Brightness.dark),
+      theme: ThemeData(
+        colorSchemeSeed: Colors.teal,
+        brightness: Brightness.light,
+        inputDecorationTheme: _inputTheme(),
+      ),
+      darkTheme: ThemeData(
+        colorSchemeSeed: Colors.teal,
+        brightness: Brightness.dark,
+        inputDecorationTheme: _inputTheme(),
+      ),
+      scrollBehavior: const MaterialScrollBehavior().copyWith(
+        physics: const ClampingScrollPhysics(),
+      ),
       home: _api == null
           ? LoginScreen(onLogin: _onLogin)
           : HomeScreen(api: _api!, onLogout: _onLogout),

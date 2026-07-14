@@ -109,6 +109,10 @@ class Api {
 
   Future<void> deletePhoto(int id) => _dio.delete('/api/photos/$id');
 
+  Future<void> reorderPhotos(int itemId, List<int> photoIds) async {
+    await _dio.put('/api/items/$itemId/photos/reorder', data: {'photo_ids': photoIds});
+  }
+
   /// Photo URL with the token as a query param, so plain Image widgets can load it.
   String photoUrl(int id) => '$baseUrl/api/photos/$id?token=$token';
 

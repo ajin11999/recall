@@ -28,6 +28,18 @@ export const photos = new Hono<App>()
       .first();
     return c.json(row, 201);
   })
+  .put('/items/:id/photos/reorder', async (c) => {
+    const itemId = Number(c.req.param('id'));
+    const body = await c.req.json<{ photo_ids: number[] }>();
+    if (!body.photo_ids || !Array.isArray(body.photo_ids)) {
+      return c.json({ error: 'invalid body' }, 400);
+    }
+    const stmts = body.photo_ids.map((photoId, index) => {
+      return c.env.DB.prepare('UPDATE photos SET sort_order = ? WHERE id = ? AND item_id = ?').bind(index, photoId, itemId);
+    });
+    await c.env.DB.batch(stmts);
+    return c.json({ ok: true });
+  })
   .get('/photos/:id', async (c) => {
     const row = await c.env.DB.prepare('SELECT r2_key, content_type FROM photos WHERE id = ?')
       .bind(Number(c.req.param('id')))

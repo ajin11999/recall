@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pattern_formatter/pattern_formatter.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../api.dart';
 import '../models.dart';
@@ -34,15 +38,18 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
   List<Label> _labels = [];
   bool _busy = false;
 
+  final List<XFile> _newPhotos = [];
+
   @override
   void initState() {
     super.initState();
     final item = widget.item;
     _name = TextEditingController(text: item?.name);
     _description = TextEditingController(text: item?.description);
-    _quantity = TextEditingController(text: (item?.quantity ?? 1).toString());
+    final nf = NumberFormat('#,###');
+    _quantity = TextEditingController(text: nf.format(item?.quantity ?? 1));
     _serial = TextEditingController(text: item?.serialNumber);
-    _price = TextEditingController(text: item?.purchasePrice?.toString());
+    _price = TextEditingController(text: item?.purchasePrice != null ? nf.format(item!.purchasePrice) : null);
     _from = TextEditingController(text: item?.purchasedFrom);
     _notes = TextEditingController(text: item?.notes);
     _purchaseDate = item?.purchaseDate == null ? null : DateTime.tryParse(item!.purchaseDate!);
@@ -73,10 +80,10 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
     final body = <String, dynamic>{
       'name': _name.text.trim(),
       'description': _description.text.trim().isEmpty ? null : _description.text.trim(),
-      'quantity': int.tryParse(_quantity.text) ?? 1,
+      'quantity': int.tryParse(_quantity.text.replaceAll(',', '')) ?? 1,
       'location_id': _locationId,
       'serial_number': _serial.text.trim().isEmpty ? null : _serial.text.trim(),
-      'purchase_price': num.tryParse(_price.text),
+      'purchase_price': num.tryParse(_price.text.replaceAll(',', '')),
       'purchase_date': _purchaseDate == null ? null : fmt.format(_purchaseDate!),
       'purchased_from': _from.text.trim().isEmpty ? null : _from.text.trim(),
       'warranty_until': _warrantyUntil == null ? null : fmt.format(_warrantyUntil!),
@@ -85,7 +92,18 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
     };
     try {
       if (widget.item == null) {
-        await widget.api.createItem(body);
+        final item = await widget.api.createItem(body);
+        for (final photo in _newPhotos) {
+          try {
+            await widget.api.uploadPhoto(
+              item.id,
+              await photo.readAsBytes(),
+              photo.mimeType ?? 'image/jpeg',
+            );
+          } catch (e) {
+            debugPrint('Failed to upload photo: $e');
+          }
+        }
       } else {
         await widget.api.updateItem(widget.item!.id, body);
       }
@@ -133,6 +151,65 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
     );
   }
 
+  void _showAddPhotoBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Add Photo',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Take photo (Camera)'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final picked = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 80);
+                  if (picked != null) {
+                    setState(() => _newPhotos.add(picked));
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Choose from gallery'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final picked = await ImagePicker().pickMultiImage(imageQuality: 80);
+                  if (picked.isNotEmpty) {
+                    setState(() => _newPhotos.addAll(picked));
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -142,11 +219,60 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (widget.item == null) ...[
+              SizedBox(
+                height: 100,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    ..._newPhotos.map((p) => Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.file(File(p.path), width: 100, height: 100, fit: BoxFit.cover),
+                              ),
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: Material(
+                                  color: Colors.black45,
+                                  shape: const CircleBorder(),
+                                  child: IconButton(
+                                    icon: const Icon(Icons.close, color: Colors.white, size: 16),
+                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                    padding: EdgeInsets.zero,
+                                    onPressed: () => setState(() => _newPhotos.remove(p)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
+                    InkWell(
+                      onTap: _showAddPhotoBottomSheet,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.add_a_photo_outlined, color: Theme.of(context).colorScheme.primary),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             TextFormField(
               controller: _name,
               decoration: const InputDecoration(
                 labelText: 'Name *',
-                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                
               ),
               validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
             ),
@@ -155,7 +281,7 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
               controller: _description,
               decoration: const InputDecoration(
                 labelText: 'Description',
-                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                
               ),
               maxLines: 2,
             ),
@@ -166,9 +292,10 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
                   child: TextFormField(
                     controller: _quantity,
                     keyboardType: TextInputType.number,
+                    inputFormatters: [ThousandsFormatter()],
                     decoration: const InputDecoration(
                       labelText: 'Quantity',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                      
                     ),
                   ),
                 ),
@@ -178,7 +305,7 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
                     controller: _serial,
                     decoration: const InputDecoration(
                       labelText: 'Serial number',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                      
                     ),
                   ),
                 ),
@@ -192,7 +319,7 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
               ),
               decoration: InputDecoration(
                 labelText: 'Location',
-                border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                
                 suffixIcon: _locationId != null
                     ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -255,10 +382,11 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
                 Expanded(
                   child: TextFormField(
                     controller: _price,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [ThousandsFormatter()],
                     decoration: const InputDecoration(
                       labelText: 'Price',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                      
                     ),
                   ),
                 ),
@@ -268,7 +396,7 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
                     controller: _from,
                     decoration: const InputDecoration(
                       labelText: 'Purchased from',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                      
                     ),
                   ),
                 ),
@@ -282,7 +410,7 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
               controller: _notes,
               decoration: const InputDecoration(
                 labelText: 'Notes',
-                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                
               ),
               maxLines: 3,
             ),
@@ -310,3 +438,5 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
     );
   }
 }
+
+
