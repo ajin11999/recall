@@ -267,8 +267,8 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
                                     customBorder: const CircleBorder(),
                                     onTap: () => setState(() => _newPhotos.remove(p)),
                                     child: const Padding(
-                                      padding: EdgeInsets.all(4),
-                                      child: Icon(Icons.close, color: Colors.white, size: 14),
+                                      padding: EdgeInsets.all(2),
+                                      child: Icon(Icons.close, color: Colors.white, size: 7),
                                     ),
                                   ),
                                 ),

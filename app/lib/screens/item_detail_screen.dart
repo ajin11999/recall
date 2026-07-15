@@ -483,9 +483,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                       shape: const CircleBorder(),
                       clipBehavior: Clip.hardEdge,
                       child: IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white, size: 16),
+                        icon: const Icon(Icons.close, color: Colors.white, size: 8),
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
                         onPressed: () => _deletePhoto(p),
                       ),
                     ),
