@@ -119,6 +119,7 @@ class Item {
     this.labels = const [],
     this.photos = const [],
     this.schedules = const [],
+    this.isArchived = false,
   });
 
   final int id;
@@ -137,6 +138,7 @@ class Item {
   final List<Label> labels;
   final List<Photo> photos;
   final List<MaintenanceSchedule> schedules;
+  final bool isArchived;
 
   bool get warrantyActive {
     final until = warrantyUntil == null ? null : DateTime.tryParse(warrantyUntil!);
@@ -172,6 +174,7 @@ class Item {
               ?.map((e) => MaintenanceSchedule.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      isArchived: (j['is_archived'] as int? ?? 0) == 1,
     );
   }
 }

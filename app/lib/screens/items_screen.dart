@@ -30,6 +30,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
   int? _locationId;
   int? _labelId;
   bool _advancedSearch = false;
+  bool _showArchived = false;
   bool _loading = true;
   String? _error;
 
@@ -58,6 +59,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
         locationId: _locationId,
         labelId: _labelId,
         advanced: _advancedSearch,
+        includeArchived: _showArchived,
       );
       if (withFilters) {
         final results = await Future.wait([widget.api.locations(), widget.api.labels()]);
@@ -165,6 +167,16 @@ class _ItemsScreenState extends State<ItemsScreen> {
                     setState(() => _labelId = v);
                     _load();
                   },
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: const Text('Archived'),
+                  selected: _showArchived,
+                  onSelected: (val) {
+                    setState(() => _showArchived = val);
+                    _load();
+                  },
+                  avatar: const Icon(Icons.archive_outlined, size: 16),
                 ),
               ],
             ),

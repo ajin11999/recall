@@ -15,6 +15,7 @@ const itemSchema = z.object({
   warranty_until: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   label_ids: z.array(z.number().int()).optional(),
+  is_archived: z.boolean().optional(),
 });
 
 async function getItemDetail(db: Bindings['DB'], id: number) {
@@ -50,12 +51,17 @@ export const items = new Hono<App>()
     const locationId = c.req.query('location_id') ?? null;
     const labelId = c.req.query('label_id') ?? null;
     const isAdvanced = c.req.query('advanced') === 'true';
+    const includeArchived = c.req.query('include_archived') === 'true';
     const page = Math.max(1, Number(c.req.query('page') ?? 1) || 1);
     const perPage = Math.min(100, Math.max(1, Number(c.req.query('per_page') ?? 50) || 50));
 
     const where: string[] = [];
     const params: unknown[] = [];
     let withClause = '';
+    
+    if (!includeArchived) {
+      where.push('i.is_archived = 0');
+    }
 
     if (q) {
       let decodedQ = q.replace(/\+/g, ' ').trim();
@@ -190,7 +196,7 @@ export const items = new Hono<App>()
     await c.env.DB.prepare(
       `UPDATE items SET name = ?, description = ?, quantity = ?, location_id = ?, serial_number = ?,
          purchase_price = ?, purchase_date = ?, purchased_from = ?, warranty_until = ?, notes = ?,
-         updated_at = datetime('now')
+         is_archived = ?, updated_at = datetime('now')
        WHERE id = ?`
     )
       .bind(
@@ -204,6 +210,7 @@ export const items = new Hono<App>()
         val('purchased_from'),
         val('warranty_until'),
         val('notes'),
+        b.is_archived !== undefined ? (b.is_archived ? 1 : 0) : existing.is_archived,
         id
       )
       .run();

@@ -103,6 +103,21 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     }
   }
 
+  Future<void> _toggleArchiveItem() async {
+    final bool isArchiving = !_item!.isArchived;
+    if (isArchiving) {
+      final ok = await _confirm('Archive "${_item!.name}"?\n\nThis will hide the item and pause its maintenance notifications.');
+      if (!ok) return;
+    }
+    try {
+      await widget.api.updateItem(widget.itemId, {'is_archived': isArchiving});
+      await _load();
+      await Notifications.sync(widget.api);
+    } catch (e) {
+      _snack(apiErrorMessage(e));
+    }
+  }
+
   Future<bool> _confirm(String message) async {
     final result = await showDialog<bool>(
       context: context,
@@ -334,7 +349,17 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               },
             ),
           if (item != null)
-            IconButton(icon: const Icon(Icons.delete_outline), onPressed: _deleteItem),
+            IconButton(
+              icon: Icon(item.isArchived ? Icons.unarchive_outlined : Icons.archive_outlined),
+              tooltip: item.isArchived ? 'Unarchive' : 'Archive',
+              onPressed: _toggleArchiveItem,
+            ),
+          if (item != null)
+            IconButton(
+              icon: const Icon(Icons.delete_outline), 
+              tooltip: 'Delete',
+              onPressed: _deleteItem,
+            ),
         ],
       ),
       body: _error != null

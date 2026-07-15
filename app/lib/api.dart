@@ -23,12 +23,13 @@ class Api {
 
   // ---- items
 
-  Future<ItemPage> items({String? q, int? locationId, int? labelId, bool advanced = false, int page = 1}) async {
+  Future<ItemPage> items({String? q, int? locationId, int? labelId, bool advanced = false, bool includeArchived = false, int page = 1}) async {
     final res = await _dio.get('/api/items', queryParameters: {
       if (q != null && q.isNotEmpty) 'q': q,
       'location_id': ?locationId,
       'label_id': ?labelId,
       if (advanced) 'advanced': 'true',
+      if (includeArchived) 'include_archived': 'true',
       'page': page,
       'per_page': 100,
     });

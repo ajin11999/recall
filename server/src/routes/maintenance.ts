@@ -105,6 +105,7 @@ export const maintenance = new Hono<App>()
        FROM maintenance_schedules ms
        JOIN items i ON i.id = ms.item_id
        WHERE ms.next_due_date <= date('now', '+' || ? || ' days')
+         AND i.is_archived = 0
        ORDER BY ms.next_due_date`
     )
       .bind(days)
