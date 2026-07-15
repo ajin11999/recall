@@ -186,6 +186,16 @@ export const items = new Hono<App>()
     if (b.label_ids?.length) await replaceLabels(c.env.DB, row!.id, b.label_ids);
     return c.json(await getItemDetail(c.env.DB, row!.id), 201);
   })
+  .put('/bulk-move', zValidator('json', z.object({ item_ids: z.array(z.number()), location_id: z.number().nullable() })), async (c) => {
+    const { item_ids, location_id } = c.req.valid('json');
+    if (item_ids.length === 0) return c.json({ ok: true });
+    
+    const placeholders = item_ids.map(() => '?').join(',');
+    await c.env.DB.prepare(`UPDATE items SET location_id = ?, updated_at = datetime('now') WHERE id IN (${placeholders})`)
+      .bind(location_id, ...item_ids)
+      .run();
+    return c.json({ ok: true });
+  })
   .put('/:id', zValidator('json', itemSchema.partial()), async (c) => {
     const id = Number(c.req.param('id'));
     const b = c.req.valid('json');

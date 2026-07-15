@@ -53,6 +53,13 @@ class Api {
 
   Future<void> deleteItem(int id) => _dio.delete('/api/items/$id');
 
+  Future<void> bulkMoveItems(List<int> itemIds, int? locationId) async {
+    await _dio.put('/api/items/bulk-move', data: {
+      'item_ids': itemIds,
+      'location_id': locationId,
+    });
+  }
+
   // ---- locations
 
   Future<List<Location>> locations() async {

@@ -31,6 +31,8 @@ class _ItemsScreenState extends State<ItemsScreen> {
   int? _labelId;
   bool _advancedSearch = false;
   bool _showArchived = false;
+  bool _selectionMode = false;
+  final Set<int> _selectedItemIds = {};
   bool _loading = true;
   String? _error;
 
@@ -85,6 +87,54 @@ class _ItemsScreenState extends State<ItemsScreen> {
     _debounce = Timer(const Duration(milliseconds: 400), _load);
   }
 
+  Future<void> _moveSelected() async {
+    final newLocationId = await _pickLocationForMove();
+    if (newLocationId == -1) return; // Cancelled
+    
+    setState(() => _loading = true);
+    try {
+      await widget.api.bulkMoveItems(_selectedItemIds.toList(), newLocationId == 0 ? null : newLocationId);
+      setState(() {
+        _selectionMode = false;
+        _selectedItemIds.clear();
+      });
+      await _load(withFilters: true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<int> _pickLocationForMove() async {
+    final entries = _locations.map((l) => MapEntry(l.id, _locations.pathFor(l.id))).toList();
+    entries.insert(0, const MapEntry(0, 'None / No Location'));
+
+    final result = await showModalBottomSheet<List<int?>>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: _FilterModal<int>(
+            label: 'Location to move to',
+            entries: entries,
+            currentValue: null,
+          ),
+        ),
+      ),
+    );
+    if (result != null && result.isNotEmpty) {
+      return result.first ?? 0;
+    }
+    return -1; // Cancelled
+  }
+
   String _locationName(int? id) {
     return _locations.pathFor(id);
   }
@@ -93,10 +143,43 @@ class _ItemsScreenState extends State<ItemsScreen> {
   Widget build(BuildContext context) {
     final embedded = widget.fixedLocation == null;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.fixedLocation?.name ?? 'Recall'),
-        automaticallyImplyLeading: !embedded,
-      ),
+      appBar: _selectionMode
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () {
+                  setState(() {
+                    _selectionMode = false;
+                    _selectedItemIds.clear();
+                  });
+                },
+              ),
+              title: Text('${_selectedItemIds.length} selected'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.drive_file_move_outline),
+                  tooltip: 'Move Selected',
+                  onPressed: _selectedItemIds.isEmpty ? null : _moveSelected,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.select_all),
+                  tooltip: 'Select All',
+                  onPressed: () {
+                    setState(() {
+                      if (_selectedItemIds.length == _items.length) {
+                        _selectedItemIds.clear();
+                      } else {
+                        _selectedItemIds.addAll(_items.map((e) => e.id));
+                      }
+                    });
+                  },
+                ),
+              ],
+            )
+          : AppBar(
+              title: Text(widget.fixedLocation?.name ?? 'Recall'),
+              automaticallyImplyLeading: !embedded,
+            ),
       body: Column(
         children: [
           Padding(
@@ -264,8 +347,26 @@ class _ItemsScreenState extends State<ItemsScreen> {
         itemBuilder: (context, i) {
           final item = _items[i];
           final locationName = _locationName(item.locationId);
+          final isSelected = _selectedItemIds.contains(item.id);
           return ListTile(
-            leading: _thumbnail(item),
+            selected: isSelected,
+            selectedColor: Theme.of(context).colorScheme.onSecondaryContainer,
+            selectedTileColor: Theme.of(context).colorScheme.secondaryContainer,
+            leading: _selectionMode
+                ? Checkbox(
+                    value: isSelected,
+                    onChanged: (val) {
+                      setState(() {
+                        if (val == true) {
+                          _selectedItemIds.add(item.id);
+                        } else {
+                          _selectedItemIds.remove(item.id);
+                          if (_selectedItemIds.isEmpty) _selectionMode = false;
+                        }
+                      });
+                    },
+                  )
+                : _thumbnail(item),
             title: Text(item.name),
             subtitle: Text(
               [
@@ -274,15 +375,34 @@ class _ItemsScreenState extends State<ItemsScreen> {
                 if (item.warrantyActive) 'warranty',
               ].join(' · '),
             ),
-            onTap: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ItemDetailScreen(api: widget.api, itemId: item.id),
-                ),
-              );
-              _load(withFilters: true);
-            },
+            onLongPress: _selectionMode
+                ? null
+                : () {
+                    setState(() {
+                      _selectionMode = true;
+                      _selectedItemIds.add(item.id);
+                    });
+                  },
+            onTap: _selectionMode
+                ? () {
+                    setState(() {
+                      if (isSelected) {
+                        _selectedItemIds.remove(item.id);
+                        if (_selectedItemIds.isEmpty) _selectionMode = false;
+                      } else {
+                        _selectedItemIds.add(item.id);
+                      }
+                    });
+                  }
+                : () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ItemDetailScreen(api: widget.api, itemId: item.id),
+                      ),
+                    );
+                    _load(withFilters: true);
+                  },
           );
         },
       ),
