@@ -13,3 +13,8 @@ app/android/.gradle/
 app/android/local.properties
 app/android/key.properties
 app/*.iml
+
+# Keystore files
+*.jks
+*.keystore
+KEYSTORE_BASE64.txt
