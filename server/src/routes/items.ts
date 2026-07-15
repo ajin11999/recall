@@ -57,7 +57,7 @@ export const items = new Hono<App>()
     if (q) {
       const words = q.trim().split(/\s+/);
       for (const word of words) {
-        where.push('(LOWER(i.name) LIKE ? OR LOWER(i.description) LIKE ? OR LOWER(i.serial_number) LIKE ?)');
+        where.push('(LOWER(i.name) LIKE ? OR LOWER(COALESCE(i.description, "")) LIKE ? OR LOWER(COALESCE(i.serial_number, "")) LIKE ?)');
         const like = `%${word.toLowerCase()}%`;
         params.push(like, like, like);
       }

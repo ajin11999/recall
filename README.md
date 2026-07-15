@@ -1,5 +1,11 @@
 # Recall
 
+<img src="./app/assets/images/logo.jpg" alt="Recall Logo" width="100"/>
+
+**Vibe coded with Gemini ✨**
+
+**Philosophy:** This app is intended to help you reduce your consumerism traits. By keeping track of what you own, taking care of your items, and being aware of your inventory, you can avoid unnecessary purchases. The logo reflects this anti-consumerism stance.
+
 Personal physical-asset inventory: track tools, ladders, electronics, peripherals, and appliances — with photos, purchase/warranty info, and maintenance schedules that notify your phone.
 
 - **`server/`** — Cloudflare Worker (Hono + TypeScript), D1 (SQLite) for data, R2 for photos. Runs entirely on Cloudflare's free tier.

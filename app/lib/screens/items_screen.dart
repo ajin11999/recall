@@ -82,11 +82,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
   }
 
   String _locationName(int? id) {
-    if (id == null) return '';
-    for (final l in _locations) {
-      if (l.id == id) return l.name;
-    }
-    return '';
+    return _locations.pathFor(id);
   }
 
   @override
@@ -137,8 +133,8 @@ class _ItemsScreenState extends State<ItemsScreen> {
                   _filterChip<int>(
                     label: 'Location',
                     value: _locationId,
-                    display: _locationName(_locationId),
-                    entries: _locations.map((l) => MapEntry(l.id, l.name)).toList(),
+                    display: _locations.pathFor(_locationId),
+                    entries: _locations.map((l) => MapEntry(l.id, _locations.pathFor(l.id))).toList(),
                     onChanged: (v) {
                       setState(() => _locationId = v);
                       _load();
@@ -335,10 +331,12 @@ class _FilterModalState<T> extends State<_FilterModal<T>> {
 
   void _onSearchChanged() {
     final query = _searchController.text.toLowerCase();
+    final words = query.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
     setState(() {
-      _filteredEntries = widget.entries
-          .where((e) => e.value.toLowerCase().contains(query))
-          .toList();
+      _filteredEntries = widget.entries.where((e) {
+        final val = e.value.toLowerCase();
+        return words.every((word) => val.contains(word));
+      }).toList();
     });
   }
 
