@@ -47,6 +47,9 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            applicationIdSuffix = ".debug"
+        }
         release {
             // Falls back to debug signing (so `flutter run --release` works) until
             // android/key.properties is created — see app/README.md for setup.
