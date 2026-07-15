@@ -29,6 +29,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
   List<Label> _labels = [];
   int? _locationId;
   int? _labelId;
+  bool _advancedSearch = false;
   bool _loading = true;
   String? _error;
 
@@ -56,6 +57,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
         q: _search.text.trim(),
         locationId: _locationId,
         labelId: _labelId,
+        advanced: _advancedSearch,
       );
       if (withFilters) {
         final results = await Future.wait([widget.api.locations(), widget.api.labels()]);
@@ -141,6 +143,16 @@ class _ItemsScreenState extends State<ItemsScreen> {
                     },
                   ),
                 if (embedded) const SizedBox(width: 8),
+                FilterChip(
+                  label: const Text('True Recall'),
+                  selected: _advancedSearch,
+                  onSelected: (val) {
+                    setState(() => _advancedSearch = val);
+                    _load();
+                  },
+                  avatar: const Icon(Icons.memory, size: 16),
+                ),
+                const SizedBox(width: 8),
                 _filterChip<int>(
                   label: 'Label',
                   value: _labelId,

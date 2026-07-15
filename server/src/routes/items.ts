@@ -49,19 +49,76 @@ export const items = new Hono<App>()
     const q = c.req.query('q') ?? null;
     const locationId = c.req.query('location_id') ?? null;
     const labelId = c.req.query('label_id') ?? null;
+    const isAdvanced = c.req.query('advanced') === 'true';
     const page = Math.max(1, Number(c.req.query('page') ?? 1) || 1);
     const perPage = Math.min(100, Math.max(1, Number(c.req.query('per_page') ?? 50) || 50));
 
     const where: string[] = [];
     const params: unknown[] = [];
+    let withClause = '';
+
     if (q) {
-      const words = q.trim().split(/\s+/);
-      for (const word of words) {
-        where.push('(LOWER(i.name) LIKE ? OR LOWER(COALESCE(i.description, "")) LIKE ? OR LOWER(COALESCE(i.serial_number, "")) LIKE ?)');
-        const like = `%${word.toLowerCase()}%`;
-        params.push(like, like, like);
+      let decodedQ = q.replace(/\+/g, ' ').trim();
+      let itemQuery = decodedQ;
+      let locationQuery: string | null = null;
+      const tags: string[] = [];
+
+      if (isAdvanced) {
+        // Extract tags: #tagname or tag:tagname
+        const tagRegex = /(?:#|tag:)([a-zA-Z0-9_-]+)/g;
+        let match;
+        while ((match = tagRegex.exec(decodedQ)) !== null) {
+          tags.push(match[1].toLowerCase());
+        }
+        decodedQ = decodedQ.replace(tagRegex, '').replace(/\s+/g, ' ').trim();
+
+        // Extract location
+        const locRegex = /^(.*?)\s+(?:in|at|inside)\s+(.*)$/i;
+        const locMatch = decodedQ.match(locRegex);
+        
+        if (locMatch) {
+          itemQuery = locMatch[1].trim();
+          locationQuery = locMatch[2].trim();
+        } else {
+          itemQuery = decodedQ;
+        }
+
+        // Add tag filters
+        for (const tag of tags) {
+          where.push(`EXISTS (SELECT 1 FROM item_labels il JOIN labels l ON l.id = il.label_id WHERE il.item_id = i.id AND LOWER(l.name) = ?)`);
+          params.push(tag);
+        }
+
+        // Add location filter with CTE
+        if (locationQuery) {
+          withClause = `WITH RECURSIVE LocationAncestors AS (
+            SELECT id as location_id, id as ancestor_id, name as ancestor_name FROM locations
+            UNION ALL
+            SELECT la.location_id, l.parent_id, l.name
+            FROM LocationAncestors la
+            JOIN locations l ON la.ancestor_id = l.id
+            WHERE l.parent_id IS NOT NULL
+          )`;
+          
+          where.push(`EXISTS (
+            SELECT 1 FROM LocationAncestors la 
+            WHERE la.location_id = i.location_id 
+            AND LOWER(la.ancestor_name) LIKE ?
+          )`);
+          params.push(`%${locationQuery.toLowerCase()}%`);
+        }
+      }
+
+      if (itemQuery) {
+        const words = itemQuery.split(/\s+/);
+        for (const word of words) {
+          where.push('(LOWER(i.name) LIKE ? OR LOWER(COALESCE(i.description, "")) LIKE ? OR LOWER(COALESCE(i.serial_number, "")) LIKE ?)');
+          const like = `%${word.toLowerCase()}%`;
+          params.push(like, like, like);
+        }
       }
     }
+
     if (locationId) {
       where.push('i.location_id = ?');
       params.push(Number(locationId));
@@ -74,14 +131,14 @@ export const items = new Hono<App>()
 
     const [list, count] = await c.env.DB.batch([
       c.env.DB.prepare(
-        `SELECT i.*,
+        `${withClause} SELECT i.*,
            (SELECT p.id FROM photos p WHERE p.item_id = i.id ORDER BY p.sort_order ASC, p.id ASC LIMIT 1) AS cover_photo_id,
            (SELECT GROUP_CONCAT(il.label_id) FROM item_labels il WHERE il.item_id = i.id) AS label_ids
          FROM items i ${whereSql}
          ORDER BY i.updated_at DESC
          LIMIT ? OFFSET ?`
       ).bind(...params, perPage, (page - 1) * perPage),
-      c.env.DB.prepare(`SELECT COUNT(*) AS n FROM items i ${whereSql}`).bind(...params),
+      c.env.DB.prepare(`${withClause} SELECT COUNT(*) AS n FROM items i ${whereSql}`).bind(...params),
     ]);
 
     const itemsOut = (list.results as Record<string, unknown>[]).map((r) => ({
