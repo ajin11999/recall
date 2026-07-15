@@ -36,10 +36,16 @@ npm run deploy
 
 ### Redeploy
 
-To redeploy the server after making changes, run this single command from the project root:
+To redeploy the server after making changes, run this command from the project root:
 
 ```sh
 bun run server:deploy
+```
+
+**Important:** If you've made changes to the database schema, make sure to also apply your migrations to the production database:
+
+```sh
+bun run server:migrate-remote
 ```
 
 ## API

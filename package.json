@@ -10,7 +10,7 @@
     "app:build-apk": "cd app && flutter build apk",
     "app:build-web": "cd app && flutter build web",
     "server:dev": "cd server && npm run dev",
-    "server:deploy": "cd server && npm run deploy",
+    "server:deploy": "cd server && npm run migrate:remote && npm run deploy",
     "server:migrate-local": "cd server && npm run migrate:local",
     "server:migrate-remote": "cd server && npm run migrate:remote",
     "server:hash-password": "cd server && npm run hash-password"
