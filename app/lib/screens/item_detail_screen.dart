@@ -106,7 +106,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   Future<void> _toggleArchiveItem() async {
     final bool isArchiving = !_item!.isArchived;
     if (isArchiving) {
-      final ok = await _confirm('Archive "${_item!.name}"?\n\nThis will hide the item and pause its maintenance notifications.');
+      final ok = await _confirm(
+        'Archive "${_item!.name}"?\n\nThis will hide the item and pause its maintenance notifications.',
+        actionText: 'Archive',
+        isWarning: false,
+      );
       if (!ok) return;
     }
     try {
@@ -118,7 +122,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     }
   }
 
-  Future<bool> _confirm(String message) async {
+  Future<bool> _confirm(String message, {String actionText = 'Delete', bool isWarning = true}) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -131,11 +135,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
+              backgroundColor: isWarning ? Theme.of(context).colorScheme.error : Colors.amber,
+              foregroundColor: isWarning ? Theme.of(context).colorScheme.onError : Colors.black,
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(actionText),
           ),
         ],
       ),
@@ -508,9 +512,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                       shape: const CircleBorder(),
                       clipBehavior: Clip.hardEdge,
                       child: IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white, size: 8),
+                        icon: const Icon(Icons.close, color: Colors.white, size: 11),
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                        constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
                         onPressed: () => _deletePhoto(p),
                       ),
                     ),

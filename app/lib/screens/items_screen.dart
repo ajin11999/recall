@@ -184,30 +184,47 @@ class _ItemsScreenState extends State<ItemsScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: SearchBar(
-              controller: _search,
-              onChanged: _onSearchChanged,
-              hintText: 'Search name, description, serial…',
-              leading: const Icon(Icons.search),
-              trailing: [
-                if (_search.text.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      _search.clear();
-                      _load();
-                    },
+            child: Row(
+              children: [
+                Expanded(
+                  child: SearchBar(
+                    controller: _search,
+                    onChanged: _onSearchChanged,
+                    hintText: 'Search name, description, serial…',
+                    leading: const Icon(Icons.search),
+                    trailing: [
+                      if (_search.text.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _search.clear();
+                            _load();
+                          },
+                        ),
+                    ],
+                    elevation: WidgetStateProperty.all(0.0),
+                    backgroundColor: WidgetStateProperty.all(
+                      Theme.of(context).colorScheme.surfaceContainerHigh,
+                    ),
+                    shape: WidgetStateProperty.all(
+                      const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(12)),
+                      ),
+                    ),
                   ),
-              ],
-              elevation: WidgetStateProperty.all(0.0),
-              backgroundColor: WidgetStateProperty.all(
-                Theme.of(context).colorScheme.surfaceContainerHigh,
-              ),
-              shape: WidgetStateProperty.all(
-                const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
-              ),
+                const SizedBox(width: 8),
+                IconButton.filledTonal(
+                  tooltip: 'True Recall',
+                  isSelected: _advancedSearch,
+                  onPressed: () {
+                    setState(() => _advancedSearch = !_advancedSearch);
+                    _load();
+                  },
+                  icon: const Icon(Icons.memory_outlined),
+                  selectedIcon: const Icon(Icons.memory),
+                ),
+              ],
             ),
           ),
           SizedBox(
@@ -228,16 +245,6 @@ class _ItemsScreenState extends State<ItemsScreen> {
                     },
                   ),
                 if (embedded) const SizedBox(width: 8),
-                FilterChip(
-                  label: const Text('True Recall'),
-                  selected: _advancedSearch,
-                  onSelected: (val) {
-                    setState(() => _advancedSearch = val);
-                    _load();
-                  },
-                  avatar: const Icon(Icons.memory, size: 16),
-                ),
-                const SizedBox(width: 8),
                 _filterChip<int>(
                   label: 'Label',
                   value: _labelId,
