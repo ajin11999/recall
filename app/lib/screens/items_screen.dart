@@ -31,6 +31,9 @@ class _ItemsScreenState extends State<ItemsScreen> {
   int? _labelId;
   bool _advancedSearch = false;
   bool _showArchived = false;
+  bool _showWishlist = false;
+  bool _showConsumablesOnly = false;
+  bool _showLowStockOnly = false;
   bool _selectionMode = false;
   final Set<int> _selectedItemIds = {};
   bool _loading = true;
@@ -62,6 +65,9 @@ class _ItemsScreenState extends State<ItemsScreen> {
         labelId: _labelId,
         advanced: _advancedSearch,
         includeArchived: _showArchived,
+        isWishlist: _showWishlist ? true : false,
+        isConsumable: _showConsumablesOnly ? true : null,
+        lowStock: _showLowStockOnly,
       );
       if (withFilters) {
         final results = await Future.wait([widget.api.locations(), widget.api.labels()]);
@@ -139,6 +145,51 @@ class _ItemsScreenState extends State<ItemsScreen> {
     return _locations.pathFor(id);
   }
 
+  Future<void> _quickConsume(Item item) async {
+    try {
+      final updated = await widget.api.consumeItem(item.id);
+      if (updated.quantity == 0 && mounted) {
+        final addToWishlist = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Out of Stock!'),
+            content: Text('"${item.name}" is now out of stock. Add to your Wishlist?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
+              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Add to Wishlist')),
+            ],
+          ),
+        );
+        if (addToWishlist == true) {
+          await widget.api.updateItem(item.id, {'is_wishlist': true});
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added "${item.name}" to Wishlist')));
+        }
+      }
+      _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+    }
+  }
+
+  Future<void> _quickRestock(Item item) async {
+    try {
+      await widget.api.restockItem(item.id);
+      _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+    }
+  }
+
+  Future<void> _quickMarkBought(Item item) async {
+    try {
+      await widget.api.markItemBought(item.id);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Marked "${item.name}" as bought!')));
+      _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final embedded = widget.fixedLocation == null;
@@ -177,7 +228,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
               ],
             )
           : AppBar(
-              title: Text(widget.fixedLocation?.name ?? 'Recall'),
+              title: Text(_showWishlist ? 'Wishlist' : (widget.fixedLocation?.name ?? 'Recall')),
               automaticallyImplyLeading: !embedded,
             ),
       body: Column(
@@ -233,6 +284,51 @@ class _ItemsScreenState extends State<ItemsScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               children: [
+                FilterChip(
+                  label: const Text('Wishlist'),
+                  selected: _showWishlist,
+                  onSelected: (val) {
+                    setState(() {
+                      _showWishlist = val;
+                      if (val) {
+                        _showConsumablesOnly = false;
+                        _showLowStockOnly = false;
+                      }
+                    });
+                    _load();
+                  },
+                  avatar: const Icon(Icons.bookmark_outline, size: 16),
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: const Text('Consumables'),
+                  selected: _showConsumablesOnly,
+                  onSelected: (val) {
+                    setState(() {
+                      _showConsumablesOnly = val;
+                      if (val) _showWishlist = false;
+                    });
+                    _load();
+                  },
+                  avatar: const Icon(Icons.inventory_2_outlined, size: 16),
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: const Text('Low Stock'),
+                  selected: _showLowStockOnly,
+                  onSelected: (val) {
+                    setState(() {
+                      _showLowStockOnly = val;
+                      if (val) {
+                        _showConsumablesOnly = true;
+                        _showWishlist = false;
+                      }
+                    });
+                    _load();
+                  },
+                  avatar: const Icon(Icons.warning_amber_outlined, size: 16),
+                ),
+                const SizedBox(width: 8),
                 if (embedded)
                   _filterChip<int>(
                     label: 'Location',
@@ -344,7 +440,11 @@ class _ItemsScreenState extends State<ItemsScreen> {
       );
     }
     if (_items.isEmpty) {
-      return const Center(child: Text('No items yet — tap + to add one.'));
+      return Center(
+        child: Text(_showWishlist
+            ? 'Wishlist is empty — tap + to add a wishlist item.'
+            : 'No items found — tap + to add one.'),
+      );
     }
     return RefreshIndicator(
       onRefresh: () => _load(withFilters: true),
@@ -355,6 +455,49 @@ class _ItemsScreenState extends State<ItemsScreen> {
           final item = _items[i];
           final locationName = _locationName(item.locationId);
           final isSelected = _selectedItemIds.contains(item.id);
+
+          String subtitleText = [
+            if (locationName.isNotEmpty) locationName,
+            if (!item.isConsumable && item.quantity != 1) 'x${NumberFormat('#,###').format(item.quantity)}',
+            if (item.warrantyActive) 'warranty',
+          ].join(' · ');
+
+          Widget? trailingWidget;
+          if (!_selectionMode) {
+            if (item.isWishlist) {
+              trailingWidget = IconButton(
+                icon: const Icon(Icons.shopping_bag_outlined, color: Colors.green),
+                tooltip: 'Mark as Bought',
+                onPressed: () => _quickMarkBought(item),
+              );
+            } else if (item.isConsumable) {
+              trailingWidget = Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline, size: 20),
+                    tooltip: 'Consume 1',
+                    onPressed: () => _quickConsume(item),
+                  ),
+                  Text(
+                    '${item.quantity}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: item.isOutOfStock
+                          ? Colors.red
+                          : (item.isLowStock ? Colors.orange : null),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline, size: 20),
+                    tooltip: 'Restock 1',
+                    onPressed: () => _quickRestock(item),
+                  ),
+                ],
+              );
+            }
+          }
+
           return ListTile(
             selected: isSelected,
             selectedColor: Theme.of(context).colorScheme.onSecondaryContainer,
@@ -374,14 +517,60 @@ class _ItemsScreenState extends State<ItemsScreen> {
                     },
                   )
                 : _thumbnail(item),
-            title: Text(item.name),
-            subtitle: Text(
-              [
-                if (locationName.isNotEmpty) locationName,
-                if (item.quantity != 1) 'x${NumberFormat('#,###').format(item.quantity)}',
-                if (item.warrantyActive) 'warranty',
-              ].join(' · '),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    item.name,
+                    style: TextStyle(
+                      decoration: item.isOutOfStock ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                ),
+                if (item.isWishlist) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Wishlist',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.purple),
+                    ),
+                  ),
+                ] else if (item.isOutOfStock) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Out of Stock',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red),
+                    ),
+                  ),
+                ] else if (item.isLowStock) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Low Stock',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orange),
+                    ),
+                  ),
+                ],
+              ],
             ),
+            subtitle: Text(subtitleText.isEmpty ? (item.isWishlist ? 'No location assigned' : '') : subtitleText),
+            trailing: trailingWidget,
             onLongPress: _selectionMode
                 ? null
                 : () {

@@ -23,13 +23,26 @@ class Api {
 
   // ---- items
 
-  Future<ItemPage> items({String? q, int? locationId, int? labelId, bool advanced = false, bool includeArchived = false, int page = 1}) async {
+  Future<ItemPage> items({
+    String? q,
+    int? locationId,
+    int? labelId,
+    bool advanced = false,
+    bool includeArchived = false,
+    bool? isWishlist = false, // default false so inventory shows owned items unless requested
+    bool? isConsumable,
+    bool lowStock = false,
+    int page = 1,
+  }) async {
     final res = await _dio.get('/api/items', queryParameters: {
       if (q != null && q.isNotEmpty) 'q': q,
       'location_id': ?locationId,
       'label_id': ?labelId,
       if (advanced) 'advanced': 'true',
       if (includeArchived) 'include_archived': 'true',
+      if (isWishlist != null) 'is_wishlist': isWishlist ? 'true' : 'false',
+      if (isConsumable != null) 'is_consumable': isConsumable ? 'true' : 'false',
+      if (lowStock) 'low_stock': 'true',
       'page': page,
       'per_page': 100,
     });
@@ -48,6 +61,32 @@ class Api {
 
   Future<Item> updateItem(int id, Map<String, dynamic> body) async {
     final res = await _dio.put('/api/items/$id', data: body);
+    return Item.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<Item> consumeItem(int id, {int amount = 1}) async {
+    final res = await _dio.post('/api/items/$id/consume', data: {'amount': amount});
+    return Item.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<Item> restockItem(int id, {int amount = 1}) async {
+    final res = await _dio.post('/api/items/$id/restock', data: {'amount': amount});
+    return Item.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<Item> markItemBought(
+    int id, {
+    int? locationId,
+    num? purchasePrice,
+    String? purchaseDate,
+    int? quantity,
+  }) async {
+    final res = await _dio.post('/api/items/$id/mark-bought', data: {
+      'location_id': ?locationId,
+      'purchase_price': ?purchasePrice,
+      'purchase_date': ?purchaseDate,
+      'quantity': ?quantity,
+    });
     return Item.fromJson(res.data as Map<String, dynamic>);
   }
 

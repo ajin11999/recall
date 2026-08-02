@@ -120,6 +120,9 @@ class Item {
     this.photos = const [],
     this.schedules = const [],
     this.isArchived = false,
+    this.isConsumable = false,
+    this.minQuantity = 0,
+    this.isWishlist = false,
   });
 
   final int id;
@@ -139,11 +142,17 @@ class Item {
   final List<Photo> photos;
   final List<MaintenanceSchedule> schedules;
   final bool isArchived;
+  final bool isConsumable;
+  final int minQuantity;
+  final bool isWishlist;
 
   bool get warrantyActive {
     final until = warrantyUntil == null ? null : DateTime.tryParse(warrantyUntil!);
     return until != null && !until.isBefore(DateTime.now());
   }
+
+  bool get isLowStock => isConsumable && !isWishlist && quantity <= minQuantity;
+  bool get isOutOfStock => isConsumable && !isWishlist && quantity == 0;
 
   factory Item.fromJson(Map<String, dynamic> j) {
     final labels = (j['labels'] as List?)
@@ -175,6 +184,9 @@ class Item {
               .toList() ??
           const [],
       isArchived: (j['is_archived'] as int? ?? 0) == 1,
+      isConsumable: (j['is_consumable'] as int? ?? 0) == 1,
+      minQuantity: (j['min_quantity'] as int?) ?? 0,
+      isWishlist: (j['is_wishlist'] as int? ?? 0) == 1,
     );
   }
 }

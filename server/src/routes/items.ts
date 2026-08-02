@@ -16,6 +16,9 @@ const itemSchema = z.object({
   notes: z.string().nullable().optional(),
   label_ids: z.array(z.number().int()).optional(),
   is_archived: z.boolean().optional(),
+  is_consumable: z.boolean().optional(),
+  min_quantity: z.number().int().min(0).optional(),
+  is_wishlist: z.boolean().optional(),
 });
 
 async function getItemDetail(db: Bindings['DB'], id: number) {
@@ -52,6 +55,9 @@ export const items = new Hono<App>()
     const labelId = c.req.query('label_id') ?? null;
     const isAdvanced = c.req.query('advanced') === 'true';
     const includeArchived = c.req.query('include_archived') === 'true';
+    const isWishlistParam = c.req.query('is_wishlist');
+    const isConsumableParam = c.req.query('is_consumable');
+    const isLowStockParam = c.req.query('low_stock') === 'true';
     const page = Math.max(1, Number(c.req.query('page') ?? 1) || 1);
     const perPage = Math.min(100, Math.max(1, Number(c.req.query('per_page') ?? 50) || 50));
 
@@ -61,6 +67,23 @@ export const items = new Hono<App>()
     
     if (!includeArchived) {
       where.push('i.is_archived = 0');
+    }
+
+    if (isWishlistParam === 'true') {
+      where.push('i.is_wishlist = 1');
+    } else if (isWishlistParam === 'false' || isWishlistParam === undefined || isWishlistParam === null) {
+      where.push('i.is_wishlist = 0');
+    }
+    // If isWishlistParam === 'all', we don't filter by is_wishlist
+
+    if (isConsumableParam === 'true') {
+      where.push('i.is_consumable = 1');
+    } else if (isConsumableParam === 'false') {
+      where.push('i.is_consumable = 0');
+    }
+
+    if (isLowStockParam) {
+      where.push('i.is_consumable = 1 AND i.quantity <= i.min_quantity');
     }
 
     if (q) {
@@ -167,8 +190,8 @@ export const items = new Hono<App>()
     const b = c.req.valid('json');
     const row = await c.env.DB.prepare(
       `INSERT INTO items (name, description, quantity, location_id, serial_number, purchase_price,
-                          purchase_date, purchased_from, warranty_until, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+                          purchase_date, purchased_from, warranty_until, notes, is_consumable, min_quantity, is_wishlist)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
     )
       .bind(
         b.name,
@@ -180,7 +203,10 @@ export const items = new Hono<App>()
         b.purchase_date ?? null,
         b.purchased_from ?? null,
         b.warranty_until ?? null,
-        b.notes ?? null
+        b.notes ?? null,
+        b.is_consumable ? 1 : 0,
+        b.min_quantity ?? 0,
+        b.is_wishlist ? 1 : 0
       )
       .first<{ id: number }>();
     if (b.label_ids?.length) await replaceLabels(c.env.DB, row!.id, b.label_ids);
@@ -196,6 +222,55 @@ export const items = new Hono<App>()
       .run();
     return c.json({ ok: true });
   })
+  .post('/:id/consume', zValidator('json', z.object({ amount: z.number().int().min(1).optional() })), async (c) => {
+    const id = Number(c.req.param('id'));
+    const amount = c.req.valid('json').amount ?? 1;
+    const existing = await c.env.DB.prepare('SELECT quantity FROM items WHERE id = ?').bind(id).first<{ quantity: number }>();
+    if (!existing) return c.json({ error: 'not found' }, 404);
+
+    const newQty = Math.max(0, existing.quantity - amount);
+    await c.env.DB.prepare('UPDATE items SET quantity = ?, updated_at = datetime(\'now\') WHERE id = ?')
+      .bind(newQty, id)
+      .run();
+    return c.json(await getItemDetail(c.env.DB, id));
+  })
+  .post('/:id/restock', zValidator('json', z.object({ amount: z.number().int().min(1).optional() })), async (c) => {
+    const id = Number(c.req.param('id'));
+    const amount = c.req.valid('json').amount ?? 1;
+    const existing = await c.env.DB.prepare('SELECT quantity FROM items WHERE id = ?').bind(id).first<{ quantity: number }>();
+    if (!existing) return c.json({ error: 'not found' }, 404);
+
+    const newQty = existing.quantity + amount;
+    await c.env.DB.prepare('UPDATE items SET quantity = ?, updated_at = datetime(\'now\') WHERE id = ?')
+      .bind(newQty, id)
+      .run();
+    return c.json(await getItemDetail(c.env.DB, id));
+  })
+  .post('/:id/mark-bought', zValidator('json', z.object({
+    location_id: z.number().int().nullable().optional(),
+    purchase_price: z.number().nullable().optional(),
+    purchase_date: z.string().nullable().optional(),
+    quantity: z.number().int().min(1).optional(),
+  })), async (c) => {
+    const id = Number(c.req.param('id'));
+    const b = c.req.valid('json');
+    const existing = await c.env.DB.prepare('SELECT * FROM items WHERE id = ?').bind(id).first<Record<string, unknown>>();
+    if (!existing) return c.json({ error: 'not found' }, 404);
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const newLocationId = b.location_id !== undefined ? b.location_id : existing.location_id;
+    const newPrice = b.purchase_price !== undefined ? b.purchase_price : existing.purchase_price;
+    const newDate = b.purchase_date ?? existing.purchase_date ?? todayStr;
+    const newQty = b.quantity ?? existing.quantity ?? 1;
+
+    await c.env.DB.prepare(
+      `UPDATE items SET is_wishlist = 0, location_id = ?, purchase_price = ?, purchase_date = ?, quantity = ?, updated_at = datetime('now')
+       WHERE id = ?`
+    )
+      .bind(newLocationId, newPrice, newDate, newQty, id)
+      .run();
+    return c.json(await getItemDetail(c.env.DB, id));
+  })
   .put('/:id', zValidator('json', itemSchema.partial()), async (c) => {
     const id = Number(c.req.param('id'));
     const b = c.req.valid('json');
@@ -206,7 +281,7 @@ export const items = new Hono<App>()
     await c.env.DB.prepare(
       `UPDATE items SET name = ?, description = ?, quantity = ?, location_id = ?, serial_number = ?,
          purchase_price = ?, purchase_date = ?, purchased_from = ?, warranty_until = ?, notes = ?,
-         is_archived = ?, updated_at = datetime('now')
+         is_archived = ?, is_consumable = ?, min_quantity = ?, is_wishlist = ?, updated_at = datetime('now')
        WHERE id = ?`
     )
       .bind(
@@ -221,6 +296,9 @@ export const items = new Hono<App>()
         val('warranty_until'),
         val('notes'),
         b.is_archived !== undefined ? (b.is_archived ? 1 : 0) : existing.is_archived,
+        b.is_consumable !== undefined ? (b.is_consumable ? 1 : 0) : existing.is_consumable,
+        val('min_quantity'),
+        b.is_wishlist !== undefined ? (b.is_wishlist ? 1 : 0) : existing.is_wishlist,
         id
       )
       .run();
@@ -235,3 +313,4 @@ export const items = new Hono<App>()
     if (results.length) await c.env.PHOTOS.delete(results.map((r) => r.r2_key));
     return c.json({ ok: true });
   });
+

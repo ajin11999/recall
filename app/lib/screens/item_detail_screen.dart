@@ -378,6 +378,14 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     children: [
                       _photoStrip(item),
                       const SizedBox(height: 16),
+                      if (item.isWishlist) ...[
+                        _wishlistBanner(item),
+                        const SizedBox(height: 16),
+                      ],
+                      if (item.isConsumable && !item.isWishlist) ...[
+                        _consumableStockCard(item),
+                        const SizedBox(height: 16),
+                      ],
                       if (item.labels.isNotEmpty)
                         Wrap(
                           spacing: 8,
@@ -508,14 +516,15 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     top: 4,
                     right: 4,
                     child: Material(
-                      color: Colors.black45,
+                      color: Colors.black54,
                       shape: const CircleBorder(),
-                      clipBehavior: Clip.hardEdge,
-                      child: IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white, size: 11),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
-                        onPressed: () => _deletePhoto(p),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () => _deletePhoto(p),
+                        child: const Padding(
+                          padding: EdgeInsets.all(3),
+                          child: Icon(Icons.close, color: Colors.white, size: 12),
+                        ),
                       ),
                     ),
                   ),
@@ -712,6 +721,192 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _wishlistBanner(Item item) {
+    return Card(
+      elevation: 0,
+      color: Colors.purple.withOpacity(0.08),
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: Colors.purple, width: 1.5),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.bookmark, color: Colors.purple),
+                const SizedBox(width: 8),
+                Text(
+                  'Wishlist Item',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Colors.purple,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text('This item is on your wishlist and not yet in your inventory.'),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.purple,
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.shopping_bag_outlined),
+                label: const Text('Mark as Bought'),
+                onPressed: () async {
+                  try {
+                    await widget.api.markItemBought(item.id);
+                    _snack('Marked "${item.name}" as bought!');
+                    _load();
+                  } catch (e) {
+                    _snack(apiErrorMessage(e));
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _consumableStockCard(Item item) {
+    final isLow = item.isLowStock;
+    final isOut = item.isOutOfStock;
+
+    return Card(
+      elevation: 0,
+      color: isOut
+          ? Colors.red.withOpacity(0.08)
+          : (isLow ? Colors.orange.withOpacity(0.08) : Theme.of(context).colorScheme.surfaceContainerLow),
+      shape: RoundedRectangleBorder(
+        side: BorderSide(
+          color: isOut ? Colors.red : (isLow ? Colors.orange : Theme.of(context).colorScheme.outlineVariant),
+          width: isOut || isLow ? 1.5 : 1.0,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isOut ? Icons.error_outline : (isLow ? Icons.warning_amber_outlined : Icons.inventory_2_outlined),
+                  color: isOut ? Colors.red : (isLow ? Colors.orange : Theme.of(context).colorScheme.primary),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Consumable Stock Level',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: isOut ? Colors.red : (isLow ? Colors.orange : null),
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Remaining Stock',
+                      style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${item.quantity}',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: isOut ? Colors.red : (isLow ? Colors.orange : null),
+                      ),
+                    ),
+                    if (item.minQuantity > 0)
+                      Text(
+                        'Low stock threshold: ${item.minQuantity}',
+                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline),
+                      ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    IconButton.filledTonal(
+                      icon: const Icon(Icons.remove),
+                      tooltip: 'Consume 1',
+                      onPressed: item.quantity > 0
+                          ? () async {
+                              try {
+                                final updated = await widget.api.consumeItem(item.id);
+                                if (updated.quantity == 0 && mounted) {
+                                  _snack('Out of stock!');
+                                }
+                                _load();
+                              } catch (e) {
+                                _snack(apiErrorMessage(e));
+                              }
+                            }
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      icon: const Icon(Icons.add),
+                      tooltip: 'Restock 1',
+                      onPressed: () async {
+                        try {
+                          await widget.api.restockItem(item.id);
+                          _load();
+                        } catch (e) {
+                          _snack(apiErrorMessage(e));
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            if (isOut) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                  ),
+                  icon: const Icon(Icons.bookmark_add_outlined),
+                  label: const Text('Add to Wishlist'),
+                  onPressed: () async {
+                    try {
+                      await widget.api.updateItem(item.id, {'is_wishlist': true});
+                      _snack('Added "${item.name}" to Wishlist');
+                      _load();
+                    } catch (e) {
+                      _snack(apiErrorMessage(e));
+                    }
+                  },
+                ),
+              ),
+            ],
           ],
         ),
       ),

@@ -29,10 +29,13 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
   late final TextEditingController _price;
   late final TextEditingController _from;
   late final TextEditingController _notes;
+  late final TextEditingController _minQuantity;
   DateTime? _purchaseDate;
   DateTime? _warrantyUntil;
   int? _locationId;
   final Set<int> _labelIds = {};
+  bool _isWishlist = false;
+  bool _isConsumable = false;
 
   List<Location> _locations = [];
   List<Label> _labels = [];
@@ -52,9 +55,12 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
     _price = TextEditingController(text: item?.purchasePrice != null ? nf.format(item!.purchasePrice) : null);
     _from = TextEditingController(text: item?.purchasedFrom);
     _notes = TextEditingController(text: item?.notes);
+    _minQuantity = TextEditingController(text: item != null && item.minQuantity > 0 ? item.minQuantity.toString() : '1');
     _purchaseDate = item?.purchaseDate == null ? null : DateTime.tryParse(item!.purchaseDate!);
     _warrantyUntil = item?.warrantyUntil == null ? null : DateTime.tryParse(item!.warrantyUntil!);
     _locationId = item?.locationId ?? widget.initialLocationId;
+    _isWishlist = item?.isWishlist ?? false;
+    _isConsumable = item?.isConsumable ?? false;
     _labelIds.addAll(item?.labelIds ?? const []);
     _loadOptions();
   }
@@ -89,6 +95,9 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
       'warranty_until': _warrantyUntil == null ? null : fmt.format(_warrantyUntil!),
       'notes': _notes.text.trim().isEmpty ? null : _notes.text.trim(),
       'label_ids': _labelIds.toList(),
+      'is_wishlist': _isWishlist,
+      'is_consumable': _isConsumable,
+      'min_quantity': _isConsumable ? (int.tryParse(_minQuantity.text.replaceAll(',', '')) ?? 0) : 0,
     };
     try {
       if (widget.item == null) {
@@ -261,14 +270,14 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
                                 top: 4,
                                 right: 4,
                                 child: Material(
-                                  color: Colors.black45,
+                                  color: Colors.black54,
                                   shape: const CircleBorder(),
+                                  clipBehavior: Clip.antiAlias,
                                   child: InkWell(
-                                    customBorder: const CircleBorder(),
                                     onTap: () => setState(() => _newPhotos.remove(p)),
                                     child: const Padding(
-                                      padding: EdgeInsets.all(2),
-                                      child: Icon(Icons.close, color: Colors.white, size: 7),
+                                      padding: EdgeInsets.all(3),
+                                      child: Icon(Icons.close, color: Colors.white, size: 12),
                                     ),
                                   ),
                                 ),
@@ -372,6 +381,48 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
                     setState(() => _locationId = id == -1 ? null : id);
                   }
                 },
+              ),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              elevation: 0,
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('Wishlist item'),
+                    subtitle: const Text('Planning to buy — keep on shopping list'),
+                    secondary: const Icon(Icons.bookmark_outline),
+                    value: _isWishlist,
+                    onChanged: (val) => setState(() => _isWishlist = val),
+                  ),
+                  const Divider(height: 1),
+                  SwitchListTile(
+                    title: const Text('Consumable supply'),
+                    subtitle: const Text('Hooks, cables, tape, batteries — track stock level'),
+                    secondary: const Icon(Icons.inventory_outlined),
+                    value: _isConsumable,
+                    onChanged: (val) => setState(() => _isConsumable = val),
+                  ),
+                  if (_isConsumable) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: _buildField(
+                        'Low Stock Warning Threshold',
+                        TextFormField(
+                          controller: _minQuantity,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [ThousandsFormatter()],
+                          decoration: const InputDecoration(
+                            hintText: '1',
+                            helperText: 'Show low stock warning when quantity is at or below this value',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
             const SizedBox(height: 16),
