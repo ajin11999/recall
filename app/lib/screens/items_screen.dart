@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../api.dart';
 import '../models.dart';
+import '../widgets/quantity_adjustment_dialog.dart';
 import 'item_detail_screen.dart';
 import 'item_edit_screen.dart';
 
@@ -290,10 +291,6 @@ class _ItemsScreenState extends State<ItemsScreen> {
                   onSelected: (val) {
                     setState(() {
                       _showWishlist = val;
-                      if (val) {
-                        _showConsumablesOnly = false;
-                        _showLowStockOnly = false;
-                      }
                     });
                     _load();
                   },
@@ -306,7 +303,9 @@ class _ItemsScreenState extends State<ItemsScreen> {
                   onSelected: (val) {
                     setState(() {
                       _showConsumablesOnly = val;
-                      if (val) _showWishlist = false;
+                      if (!val) {
+                        _showLowStockOnly = false;
+                      }
                     });
                     _load();
                   },
@@ -321,7 +320,6 @@ class _ItemsScreenState extends State<ItemsScreen> {
                       _showLowStockOnly = val;
                       if (val) {
                         _showConsumablesOnly = true;
-                        _showWishlist = false;
                       }
                     });
                     _load();
@@ -440,10 +438,16 @@ class _ItemsScreenState extends State<ItemsScreen> {
       );
     }
     if (_items.isEmpty) {
+      String message = 'No items found — tap + to add one.';
+      if (_showWishlist && _showConsumablesOnly) {
+        message = 'No consumable items on your Wishlist.';
+      } else if (_showWishlist) {
+        message = 'Wishlist is empty — tap + to add a wishlist item.';
+      } else if (_showConsumablesOnly) {
+        message = _showLowStockOnly ? 'No low stock consumable items.' : 'No consumable items found.';
+      }
       return Center(
-        child: Text(_showWishlist
-            ? 'Wishlist is empty — tap + to add a wishlist item.'
-            : 'No items found — tap + to add one.'),
+        child: Text(message),
       );
     }
     return RefreshIndicator(
@@ -479,13 +483,28 @@ class _ItemsScreenState extends State<ItemsScreen> {
                     tooltip: 'Consume 1',
                     onPressed: () => _quickConsume(item),
                   ),
-                  Text(
-                    '${item.quantity}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: item.isOutOfStock
-                          ? Colors.red
-                          : (item.isLowStock ? Colors.orange : null),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () async {
+                      final updated = await showQuantityAdjustmentSheet(
+                        context: context,
+                        api: widget.api,
+                        item: item,
+                      );
+                      if (updated != null) _load();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      child: Text(
+                        '${item.quantity}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: item.isOutOfStock
+                              ? Colors.red
+                              : (item.isLowStock ? Colors.orange : null),
+                        ),
+                      ),
                     ),
                   ),
                   IconButton(
@@ -498,7 +517,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
             }
           }
 
-          return ListTile(
+          final tile = ListTile(
             selected: isSelected,
             selectedColor: Theme.of(context).colorScheme.onSecondaryContainer,
             selectedTileColor: Theme.of(context).colorScheme.secondaryContainer,
@@ -600,6 +619,49 @@ class _ItemsScreenState extends State<ItemsScreen> {
                     _load(withFilters: true);
                   },
           );
+
+          if (item.isConsumable && !item.isWishlist && !_selectionMode) {
+            return Dismissible(
+              key: ValueKey('item_${item.id}_${item.quantity}'),
+              direction: DismissDirection.horizontal,
+              confirmDismiss: (direction) async {
+                if (direction == DismissDirection.startToEnd) {
+                  await _quickRestock(item);
+                } else if (direction == DismissDirection.endToStart) {
+                  await _quickConsume(item);
+                }
+                return false;
+              },
+              background: Container(
+                color: Colors.green.shade700,
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.only(left: 20),
+                child: const Row(
+                  children: [
+                    Icon(Icons.add_circle, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text('Restock +1', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+              secondaryBackground: Container(
+                color: Colors.orange.shade800,
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 20),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text('Consume -1', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    SizedBox(width: 8),
+                    Icon(Icons.remove_circle, color: Colors.white),
+                  ],
+                ),
+              ),
+              child: tile,
+            );
+          }
+
+          return tile;
         },
       ),
     );

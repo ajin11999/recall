@@ -154,6 +154,13 @@ class Item {
   bool get isLowStock => isConsumable && !isWishlist && quantity <= minQuantity;
   bool get isOutOfStock => isConsumable && !isWishlist && quantity == 0;
 
+  static bool _parseBool(dynamic val) {
+    if (val is bool) return val;
+    if (val is int) return val == 1;
+    if (val is String) return val == '1' || val.toLowerCase() == 'true';
+    return false;
+  }
+
   factory Item.fromJson(Map<String, dynamic> j) {
     final labels = (j['labels'] as List?)
             ?.map((e) => Label.fromJson(e as Map<String, dynamic>))
@@ -183,10 +190,10 @@ class Item {
               ?.map((e) => MaintenanceSchedule.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
-      isArchived: (j['is_archived'] as int? ?? 0) == 1,
-      isConsumable: (j['is_consumable'] as int? ?? 0) == 1,
-      minQuantity: (j['min_quantity'] as int?) ?? 0,
-      isWishlist: (j['is_wishlist'] as int? ?? 0) == 1,
+      isArchived: _parseBool(j['is_archived']),
+      isConsumable: _parseBool(j['is_consumable']),
+      minQuantity: (j['min_quantity'] as num?)?.toInt() ?? 0,
+      isWishlist: _parseBool(j['is_wishlist']),
     );
   }
 }

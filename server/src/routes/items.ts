@@ -51,8 +51,10 @@ async function replaceLabels(db: Bindings['DB'], itemId: number, labelIds: numbe
 export const items = new Hono<App>()
   .get('/', async (c) => {
     const q = c.req.query('q') ?? null;
-    const locationId = c.req.query('location_id') ?? null;
-    const labelId = c.req.query('label_id') ?? null;
+    const locationIdRaw = c.req.query('location_id');
+    const locationId = (locationIdRaw && locationIdRaw !== 'null' && locationIdRaw !== 'undefined' && !isNaN(Number(locationIdRaw))) ? Number(locationIdRaw) : null;
+    const labelIdRaw = c.req.query('label_id');
+    const labelId = (labelIdRaw && labelIdRaw !== 'null' && labelIdRaw !== 'undefined' && !isNaN(Number(labelIdRaw))) ? Number(labelIdRaw) : null;
     const isAdvanced = c.req.query('advanced') === 'true';
     const includeArchived = c.req.query('include_archived') === 'true';
     const isWishlistParam = c.req.query('is_wishlist');
@@ -148,13 +150,13 @@ export const items = new Hono<App>()
       }
     }
 
-    if (locationId) {
+    if (locationId !== null) {
       where.push('i.location_id = ?');
-      params.push(Number(locationId));
+      params.push(locationId);
     }
-    if (labelId) {
+    if (labelId !== null) {
       where.push('EXISTS (SELECT 1 FROM item_labels il WHERE il.item_id = i.id AND il.label_id = ?)');
-      params.push(Number(labelId));
+      params.push(labelId);
     }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 

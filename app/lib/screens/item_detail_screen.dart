@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../api.dart';
 import '../models.dart';
 import '../notifications.dart';
+import '../widgets/quantity_adjustment_dialog.dart';
 import 'item_edit_screen.dart';
 import 'items_screen.dart';
 
@@ -825,28 +826,42 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Remaining Stock',
-                      style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline),
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () async {
+                    final updated = await showQuantityAdjustmentSheet(
+                      context: context,
+                      api: widget.api,
+                      item: item,
+                    );
+                    if (updated != null) _load();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Remaining Stock (Tap to set)',
+                          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${item.quantity}',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: isOut ? Colors.red : (isLow ? Colors.orange : null),
+                          ),
+                        ),
+                        if (item.minQuantity > 0)
+                          Text(
+                            'Low stock threshold: ${item.minQuantity}',
+                            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline),
+                          ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${item.quantity}',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: isOut ? Colors.red : (isLow ? Colors.orange : null),
-                      ),
-                    ),
-                    if (item.minQuantity > 0)
-                      Text(
-                        'Low stock threshold: ${item.minQuantity}',
-                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline),
-                      ),
-                  ],
+                  ),
                 ),
                 Row(
                   children: [
@@ -878,6 +893,19 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                         } catch (e) {
                           _snack(apiErrorMessage(e));
                         }
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.outlined(
+                      icon: const Icon(Icons.tune),
+                      tooltip: 'Adjust Quantity',
+                      onPressed: () async {
+                        final updated = await showQuantityAdjustmentSheet(
+                          context: context,
+                          api: widget.api,
+                          item: item,
+                        );
+                        if (updated != null) _load();
                       },
                     ),
                   ],
