@@ -208,6 +208,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     DateTime due = DateTime.tryParse(existing?.nextDueDate ?? '') ??
         DateTime.now().add(Duration(days: int.tryParse(interval.text) ?? 90));
 
+    var saving = false;
     final saved = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -261,8 +262,21 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              // Guard against double-taps: each tap would otherwise create a
+              // separate schedule row, which then fires a duplicate reminder.
+              onPressed: saving
+                  ? null
+                  : () {
+                      setDialogState(() => saving = true);
+                      Navigator.pop(context, true);
+                    },
+              child: const Text('Save'),
+            ),
           ],
         ),
       ),
