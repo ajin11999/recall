@@ -2,6 +2,8 @@
 
 <img src="./app/assets/images/logo.jpg" alt="Recall Logo" width="100"/>
 
+*anti-consumerism app*
+
 **Vibe coded with Gemini ✨**
 
 **Philosophy:** This app is intended to help you reduce your consumerism traits. By keeping track of what you own, taking care of your items, and being aware of your inventory, you can avoid unnecessary purchases. The logo reflects this anti-consumerism stance.
