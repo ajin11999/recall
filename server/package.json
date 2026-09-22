@@ -9,7 +9,8 @@
     "types": "wrangler types",
     "migrate:local": "wrangler d1 migrations apply recall --local",
     "migrate:remote": "wrangler d1 migrations apply recall --remote",
-    "hash-password": "node scripts/hash-password.mjs"
+    "hash-password": "node scripts/hash-password.mjs",
+    "test": "node --experimental-strip-types --test test/*.test.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.4.3",

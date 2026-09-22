@@ -49,86 +49,90 @@ class _LocationsScreenState extends State<LocationsScreen> {
     final description = TextEditingController(text: existing?.description);
     int? parent = existing?.parentId ?? parentId;
 
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(existing == null ? 'New location' : 'Edit location'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: name,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Name *',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: description,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  readOnly: true,
-                  controller: TextEditingController(
-                    text: parent == null ? 'Top level' : _locations.pathFor(parent),
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Inside',
-                    border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                    suffixIcon: parent != null
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () => setDialogState(() => parent = null),
-                          )
-                        : const Icon(Icons.arrow_drop_down),
-                  ),
-                  onTap: () async {
-                    final id = await showLocationPicker(
-                      context: context,
-                      locations: _locations,
-                      initialLocationId: parent,
-                      excludeLocationId: existing?.id,
-                    );
-                    if (id != null) {
-                      setDialogState(() => parent = id == -1 ? null : id);
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
-          ],
-        ),
-      ),
-    );
-    if (saved != true || name.text.trim().isEmpty) return;
-    final body = {
-      'name': name.text.trim(),
-      'parent_id': parent,
-      'description': description.text.trim().isEmpty ? null : description.text.trim(),
-    };
     try {
-      if (existing == null) {
-        await widget.api.createLocation(body);
-      } else {
-        await widget.api.updateLocation(existing.id, body);
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(existing == null ? 'New location' : 'Edit location'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: name,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Name *',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: description,
+                    decoration: const InputDecoration(
+                      labelText: 'Description',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    key: ValueKey(parent),
+                    readOnly: true,
+                    initialValue: parent == null ? 'Top level' : _locations.pathFor(parent),
+                    decoration: InputDecoration(
+                      labelText: 'Inside',
+                      border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                      suffixIcon: parent != null
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () => setDialogState(() => parent = null),
+                            )
+                          : const Icon(Icons.arrow_drop_down),
+                    ),
+                    onTap: () async {
+                      final id = await showLocationPicker(
+                        context: context,
+                        locations: _locations,
+                        initialLocationId: parent,
+                        excludeLocationId: existing?.id,
+                      );
+                      if (id != null) {
+                        setDialogState(() => parent = id == -1 ? null : id);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
+            ],
+          ),
+        ),
+      );
+      if (saved != true || name.text.trim().isEmpty) return;
+      final body = {
+        'name': name.text.trim(),
+        'parent_id': parent,
+        'description': description.text.trim().isEmpty ? null : description.text.trim(),
+      };
+      try {
+        if (existing == null) {
+          await widget.api.createLocation(body);
+        } else {
+          await widget.api.updateLocation(existing.id, body);
+        }
+        await _load();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+        }
       }
-      await _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
-      }
+    } finally {
+      name.dispose();
+      description.dispose();
     }
   }
 
@@ -174,50 +178,72 @@ class _LocationsScreenState extends State<LocationsScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!))
-              : _locations.isEmpty
-                  ? const Center(child: Text('No locations yet — tap + to add "Garage", "Office"…'))
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      child: ListView.builder(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        itemCount: rows.length,
-                        itemBuilder: (context, i) {
-                          final (location, depth) = rows[i];
-                          return ListTile(
-                            dense: true,
-                            visualDensity: VisualDensity.compact,
-                            contentPadding: EdgeInsets.only(left: 16.0 + depth * 24, right: 8),
-                            leading: Icon(depth == 0 ? Icons.home_work_outlined : Icons.subdirectory_arrow_right),
-                            title: Text(location.name),
-                            subtitle: Text('${location.itemCount} item${location.itemCount == 1 ? '' : 's'}'),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ItemsScreen(api: widget.api, fixedLocation: location),
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_error!),
+                      const SizedBox(height: 12),
+                      FilledButton.tonal(
+                        onPressed: _load,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: _locations.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.6,
+                              child: const Center(
+                                child: Text('No locations yet — tap + to add "Garage", "Office"…'),
                               ),
                             ),
-                            trailing: PopupMenuButton<String>(
-                              onSelected: (v) {
-                                switch (v) {
-                                  case 'add-child':
-                                    _edit(parentId: location.id);
-                                  case 'edit':
-                                    _edit(existing: location);
-                                  case 'delete':
-                                    _delete(location);
-                                }
-                              },
-                              itemBuilder: (_) => const [
-                                PopupMenuItem(value: 'add-child', child: Text('Add sub-location')),
-                                PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                PopupMenuItem(value: 'delete', child: Text('Delete')),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                          ],
+                        )
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: rows.length,
+                          itemBuilder: (context, i) {
+                            final (location, depth) = rows[i];
+                            return ListTile(
+                              dense: true,
+                              visualDensity: VisualDensity.compact,
+                              contentPadding: EdgeInsets.only(left: 16.0 + depth * 24, right: 8),
+                              leading: Icon(depth == 0 ? Icons.home_work_outlined : Icons.subdirectory_arrow_right),
+                              title: Text(location.name),
+                              subtitle: Text('${location.itemCount} item${location.itemCount == 1 ? '' : 's'}'),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ItemsScreen(api: widget.api, fixedLocation: location),
+                                ),
+                              ),
+                              trailing: PopupMenuButton<String>(
+                                onSelected: (v) {
+                                  switch (v) {
+                                    case 'add-child':
+                                      _edit(parentId: location.id);
+                                    case 'edit':
+                                      _edit(existing: location);
+                                    case 'delete':
+                                      _delete(location);
+                                  }
+                                },
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(value: 'add-child', child: Text('Add sub-location')),
+                                  PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                  PopupMenuItem(value: 'delete', child: Text('Delete')),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _edit(),
         child: const Icon(Icons.add),

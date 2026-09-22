@@ -33,10 +33,15 @@ export const labels = new Hono<App>()
     const body = c.req.valid('json');
     const existing = await c.env.DB.prepare('SELECT * FROM labels WHERE id = ?').bind(id).first<Record<string, unknown>>();
     if (!existing) return c.json({ error: 'not found' }, 404);
-    const row = await c.env.DB.prepare('UPDATE labels SET name = ?, color = ? WHERE id = ? RETURNING *')
-      .bind(body.name ?? existing.name, body.color !== undefined ? body.color : existing.color, id)
-      .first();
-    return c.json(row);
+    try {
+      const row = await c.env.DB.prepare('UPDATE labels SET name = ?, color = ? WHERE id = ? RETURNING *')
+        .bind(body.name ?? existing.name, body.color !== undefined ? body.color : existing.color, id)
+        .first();
+      return c.json(row);
+    } catch (e) {
+      if (String(e).includes('UNIQUE')) return c.json({ error: 'label name already exists' }, 409);
+      throw e;
+    }
   })
   .delete('/:id', async (c) => {
     const id = Number(c.req.param('id'));

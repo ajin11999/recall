@@ -13,6 +13,9 @@
     "server:deploy": "cd server && npm run migrate:remote && npm run deploy",
     "server:migrate-local": "cd server && npm run migrate:local",
     "server:migrate-remote": "cd server && npm run migrate:remote",
-    "server:hash-password": "cd server && npm run hash-password"
+    "server:hash-password": "cd server && npm run hash-password",
+    "server:test": "cd server && npm test",
+    "server:typecheck": "cd server && npx tsc --noEmit",
+    "test": "npm run server:test && npm run app:test"
   }
 }

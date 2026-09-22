@@ -106,6 +106,7 @@ export const maintenance = new Hono<App>()
        JOIN items i ON i.id = ms.item_id
        WHERE ms.next_due_date <= date('now', '+' || ? || ' days')
          AND i.is_archived = 0
+         AND i.is_wishlist = 0
        ORDER BY ms.next_due_date`
     )
       .bind(days)

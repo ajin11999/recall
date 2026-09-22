@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../api.dart';
 import '../models.dart';
+import '../widgets/location_picker_dialog.dart';
 import '../widgets/quantity_adjustment_dialog.dart';
 import 'item_detail_screen.dart';
 import 'item_edit_screen.dart';
@@ -95,12 +96,16 @@ class _ItemsScreenState extends State<ItemsScreen> {
   }
 
   Future<void> _moveSelected() async {
-    final newLocationId = await _pickLocationForMove();
-    if (newLocationId == -1) return; // Cancelled
+    final newLocationId = await showLocationPicker(
+      context: context,
+      locations: _locations,
+      allowClear: true,
+    );
+    if (newLocationId == null) return; // Cancelled
     
     setState(() => _loading = true);
     try {
-      await widget.api.bulkMoveItems(_selectedItemIds.toList(), newLocationId == 0 ? null : newLocationId);
+      await widget.api.bulkMoveItems(_selectedItemIds.toList(), newLocationId == -1 ? null : newLocationId);
       setState(() {
         _selectionMode = false;
         _selectedItemIds.clear();
@@ -112,34 +117,6 @@ class _ItemsScreenState extends State<ItemsScreen> {
         setState(() => _loading = false);
       }
     }
-  }
-
-  Future<int> _pickLocationForMove() async {
-    final entries = _locations.map((l) => MapEntry(l.id, _locations.pathFor(l.id))).toList();
-    entries.insert(0, const MapEntry(0, 'None / No Location'));
-
-    final result = await showModalBottomSheet<List<int?>>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: SizedBox(
-          height: MediaQuery.of(context).size.height * 0.6,
-          child: _FilterModal<int>(
-            label: 'Location to move to',
-            entries: entries,
-            currentValue: null,
-          ),
-        ),
-      ),
-    );
-    if (result != null && result.isNotEmpty) {
-      return result.first ?? 0;
-    }
-    return -1; // Cancelled
   }
 
   String _locationName(int? id) {
@@ -163,7 +140,9 @@ class _ItemsScreenState extends State<ItemsScreen> {
         );
         if (addToWishlist == true) {
           await widget.api.updateItem(item.id, {'is_wishlist': true});
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added "${item.name}" to Wishlist')));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added "${item.name}" to Wishlist')));
+          }
         }
       }
       _load();
@@ -446,8 +425,17 @@ class _ItemsScreenState extends State<ItemsScreen> {
       } else if (_showConsumablesOnly) {
         message = _showLowStockOnly ? 'No low stock consumable items.' : 'No consumable items found.';
       }
-      return Center(
-        child: Text(message),
+      return RefreshIndicator(
+        onRefresh: () => _load(withFilters: true),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.4,
+              child: Center(child: Text(message)),
+            ),
+          ],
+        ),
       );
     }
     return RefreshIndicator(
@@ -551,7 +539,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.purple.withOpacity(0.15),
+                      color: Colors.purple.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Text(
@@ -564,7 +552,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.15),
+                      color: Colors.red.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Text(
@@ -577,7 +565,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.15),
+                      color: Colors.orange.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Text(
@@ -687,7 +675,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
             )
           : Center(
               child: Text(
-                item.name.substring(0, 1).toUpperCase(),
+                item.name.trim().characters.firstOrNull?.toUpperCase() ?? '?',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 18,

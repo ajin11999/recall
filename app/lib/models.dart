@@ -148,7 +148,9 @@ class Item {
 
   bool get warrantyActive {
     final until = warrantyUntil == null ? null : DateTime.tryParse(warrantyUntil!);
-    return until != null && !until.isBefore(DateTime.now());
+    if (until == null) return false;
+    final now = DateTime.now();
+    return !until.isBefore(DateTime(now.year, now.month, now.day));
   }
 
   bool get isLowStock => isConsumable && !isWishlist && quantity <= minQuantity;
@@ -159,6 +161,52 @@ class Item {
     if (val is int) return val == 1;
     if (val is String) return val == '1' || val.toLowerCase() == 'true';
     return false;
+  }
+
+  Item copyWith({
+    int? id,
+    String? name,
+    String? description,
+    int? quantity,
+    int? locationId,
+    String? serialNumber,
+    num? purchasePrice,
+    String? purchaseDate,
+    String? purchasedFrom,
+    String? warrantyUntil,
+    String? notes,
+    int? coverPhotoId,
+    List<int>? labelIds,
+    List<Label>? labels,
+    List<Photo>? photos,
+    List<MaintenanceSchedule>? schedules,
+    bool? isArchived,
+    bool? isConsumable,
+    int? minQuantity,
+    bool? isWishlist,
+  }) {
+    return Item(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      quantity: quantity ?? this.quantity,
+      locationId: locationId ?? this.locationId,
+      serialNumber: serialNumber ?? this.serialNumber,
+      purchasePrice: purchasePrice ?? this.purchasePrice,
+      purchaseDate: purchaseDate ?? this.purchaseDate,
+      purchasedFrom: purchasedFrom ?? this.purchasedFrom,
+      warrantyUntil: warrantyUntil ?? this.warrantyUntil,
+      notes: notes ?? this.notes,
+      coverPhotoId: coverPhotoId ?? this.coverPhotoId,
+      labelIds: labelIds ?? this.labelIds,
+      labels: labels ?? this.labels,
+      photos: photos ?? this.photos,
+      schedules: schedules ?? this.schedules,
+      isArchived: isArchived ?? this.isArchived,
+      isConsumable: isConsumable ?? this.isConsumable,
+      minQuantity: minQuantity ?? this.minQuantity,
+      isWishlist: isWishlist ?? this.isWishlist,
+    );
   }
 
   factory Item.fromJson(Map<String, dynamic> j) {
@@ -178,7 +226,8 @@ class Item {
       purchasedFrom: j['purchased_from'] as String?,
       warrantyUntil: j['warranty_until'] as String?,
       notes: j['notes'] as String?,
-      coverPhotoId: j['cover_photo_id'] as int?,
+      coverPhotoId: (j['cover_photo_id'] as int?) ??
+          ((j['photos'] as List?)?.firstOrNull?['id'] as int?),
       labelIds: (j['label_ids'] as List?)?.cast<int>() ??
           labels.map((l) => l.id).toList(),
       labels: labels,
@@ -219,7 +268,8 @@ extension LocationListX on List<Location> {
     var curr = map[id];
     if (curr == null) return '';
     final path = <String>[];
-    while (curr != null) {
+    final seen = <int>{};
+    while (curr != null && seen.add(curr.id)) {
       path.add(curr.name);
       curr = map[curr.parentId];
     }
@@ -227,9 +277,11 @@ extension LocationListX on List<Location> {
   }
 
   List<(Location, int)> buildTree() {
+    final allIds = {for (final l in this) l.id};
     final byParent = <int?, List<Location>>{};
     for (final l in this) {
-      byParent.putIfAbsent(l.parentId, () => []).add(l);
+      final pid = (l.parentId != null && allIds.contains(l.parentId)) ? l.parentId : null;
+      byParent.putIfAbsent(pid, () => []).add(l);
     }
     final out = <(Location, int)>[];
     void walk(int? parentId, int depth, Set<int> seen) {

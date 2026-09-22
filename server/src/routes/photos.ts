@@ -22,17 +22,30 @@ export const photos = new Hono<App>()
     const key = `items/${itemId}/${crypto.randomUUID()}`;
     await c.env.PHOTOS.put(key, data, { httpMetadata: { contentType } });
     const row = await c.env.DB.prepare(
-      'INSERT INTO photos (item_id, r2_key, content_type, size) VALUES (?, ?, ?, ?) RETURNING id, item_id, content_type, size, created_at'
+      `INSERT INTO photos (item_id, r2_key, content_type, size, sort_order)
+       VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM photos WHERE item_id = ?))
+       RETURNING id, item_id, content_type, size, created_at`
     )
-      .bind(itemId, key, contentType, data.byteLength)
+      .bind(itemId, key, contentType, data.byteLength, itemId)
       .first();
     return c.json(row, 201);
   })
   .put('/items/:id/photos/reorder', async (c) => {
     const itemId = Number(c.req.param('id'));
-    const body = await c.req.json<{ photo_ids: number[] }>();
+    const item = await c.env.DB.prepare('SELECT id FROM items WHERE id = ?').bind(itemId).first();
+    if (!item) return c.json({ error: 'item not found' }, 404);
+
+    let body: { photo_ids?: number[] };
+    try {
+      body = await c.req.json<{ photo_ids: number[] }>();
+    } catch {
+      return c.json({ error: 'invalid body' }, 400);
+    }
     if (!body.photo_ids || !Array.isArray(body.photo_ids)) {
       return c.json({ error: 'invalid body' }, 400);
+    }
+    if (body.photo_ids.length === 0) {
+      return c.json({ ok: true });
     }
     const stmts = body.photo_ids.map((photoId, index) => {
       return c.env.DB.prepare('UPDATE photos SET sort_order = ? WHERE id = ? AND item_id = ?').bind(index, photoId, itemId);

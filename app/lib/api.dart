@@ -36,8 +36,8 @@ class Api {
   }) async {
     final res = await _dio.get('/api/items', queryParameters: {
       if (q != null && q.isNotEmpty) 'q': q,
-      if (locationId != null) 'location_id': locationId,
-      if (labelId != null) 'label_id': labelId,
+      'location_id': ?locationId,
+      'label_id': ?labelId,
       if (advanced) 'advanced': 'true',
       if (includeArchived) 'include_archived': 'true',
       if (isWishlist != null) 'is_wishlist': isWishlist ? 'true' : 'false',

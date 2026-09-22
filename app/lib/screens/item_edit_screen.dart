@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pattern_formatter/pattern_formatter.dart';
@@ -50,12 +51,13 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
     _name = TextEditingController(text: item?.name);
     _description = TextEditingController(text: item?.description);
     final nf = NumberFormat('#,###');
+    final priceFmt = NumberFormat('#,##0.##');
     _quantity = TextEditingController(text: nf.format(item?.quantity ?? 1));
     _serial = TextEditingController(text: item?.serialNumber);
-    _price = TextEditingController(text: item?.purchasePrice != null ? nf.format(item!.purchasePrice) : null);
+    _price = TextEditingController(text: item?.purchasePrice != null ? priceFmt.format(item!.purchasePrice) : null);
     _from = TextEditingController(text: item?.purchasedFrom);
     _notes = TextEditingController(text: item?.notes);
-    _minQuantity = TextEditingController(text: item != null && item.minQuantity > 0 ? item.minQuantity.toString() : '1');
+    _minQuantity = TextEditingController(text: item != null ? item.minQuantity.toString() : '1');
     _purchaseDate = item?.purchaseDate == null ? null : DateTime.tryParse(item!.purchaseDate!);
     _warrantyUntil = item?.warrantyUntil == null ? null : DateTime.tryParse(item!.warrantyUntil!);
     _locationId = item?.locationId ?? widget.initialLocationId;
@@ -63,6 +65,19 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
     _isConsumable = item?.isConsumable ?? false;
     _labelIds.addAll(item?.labelIds ?? const []);
     _loadOptions();
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _description.dispose();
+    _quantity.dispose();
+    _serial.dispose();
+    _price.dispose();
+    _from.dispose();
+    _notes.dispose();
+    _minQuantity.dispose();
+    super.dispose();
   }
 
   Future<void> _loadOptions() async {
@@ -126,9 +141,6 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
   }
 
   Widget _dateField(String label, DateTime? value, ValueChanged<DateTime?> onChanged) {
-    final controller = TextEditingController(
-      text: value == null ? '' : DateFormat('yyyy-MM-dd').format(value),
-    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Column(
@@ -140,7 +152,8 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
           ),
           const SizedBox(height: 8),
           TextFormField(
-            controller: controller,
+            key: ValueKey(value),
+            initialValue: value == null ? '' : DateFormat('yyyy-MM-dd').format(value),
             readOnly: true,
             decoration: InputDecoration(
               hintText: 'Select date',
@@ -264,7 +277,9 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
-                                child: Image.file(File(p.path), width: 100, height: 100, fit: BoxFit.cover),
+                                child: kIsWeb
+                                    ? Image.network(p.path, width: 100, height: 100, fit: BoxFit.cover)
+                                    : Image.file(File(p.path), width: 100, height: 100, fit: BoxFit.cover),
                               ),
                               Positioned(
                                 top: 4,
@@ -358,10 +373,9 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
             _buildField(
               'Location',
               TextFormField(
+                key: ValueKey('loc_${_locationId}_${_locations.length}'),
                 readOnly: true,
-                controller: TextEditingController(
-                  text: _locationId == null ? 'No location' : _locations.pathFor(_locationId),
-                ),
+                initialValue: _locationId == null ? 'No location' : _locations.pathFor(_locationId),
                 decoration: InputDecoration(
                   hintText: 'Select location',
                   suffixIcon: _locationId != null
@@ -471,8 +485,8 @@ class _ItemEditScreenState extends State<ItemEditScreen> {
                     'Price',
                     TextFormField(
                       controller: _price,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [ThousandsFormatter()],
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [ThousandsFormatter(allowFraction: true)],
                       decoration: const InputDecoration(
                         hintText: '0.00',
                       ),

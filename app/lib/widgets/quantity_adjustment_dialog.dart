@@ -131,7 +131,7 @@ class _QuantityAdjustmentSheetState extends State<_QuantityAdjustmentSheet> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.12),
+                  color: statusColor.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -324,28 +324,7 @@ class _QuantityAdjustmentSheetState extends State<_QuantityAdjustmentSheet> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () {
-                Navigator.pop(context, Item(
-                  id: widget.item.id,
-                  name: widget.item.name,
-                  description: widget.item.description,
-                  quantity: _currentQuantity,
-                  locationId: widget.item.locationId,
-                  serialNumber: widget.item.serialNumber,
-                  purchasePrice: widget.item.purchasePrice,
-                  purchaseDate: widget.item.purchaseDate,
-                  purchasedFrom: widget.item.purchasedFrom,
-                  warrantyUntil: widget.item.warrantyUntil,
-                  notes: widget.item.notes,
-                  coverPhotoId: widget.item.coverPhotoId,
-                  labelIds: widget.item.labelIds,
-                  labels: widget.item.labels,
-                  photos: widget.item.photos,
-                  schedules: widget.item.schedules,
-                  isArchived: widget.item.isArchived,
-                  isConsumable: widget.item.isConsumable,
-                  minQuantity: widget.item.minQuantity,
-                  isWishlist: widget.item.isWishlist,
-                ));
+                Navigator.pop(context, widget.item.copyWith(quantity: _currentQuantity));
               },
               child: const Text('Done'),
             ),
@@ -367,8 +346,8 @@ class _QuantityAdjustmentSheetState extends State<_QuantityAdjustmentSheet> {
           color: color,
         ),
       ),
-      backgroundColor: color.withOpacity(0.08),
-      side: BorderSide(color: color.withOpacity(0.3)),
+      backgroundColor: color.withValues(alpha: 0.08),
+      side: BorderSide(color: color.withValues(alpha: 0.3)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       onPressed: onTap,
     );

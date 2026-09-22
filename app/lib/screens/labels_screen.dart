@@ -55,65 +55,69 @@ class _LabelsScreenState extends State<LabelsScreen> {
     final name = TextEditingController(text: existing?.name);
     String? color = existing?.color ?? _palette.first;
 
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(existing == null ? 'New label' : 'Edit label'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: name,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Name *',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _palette
-                      .map(
-                        (hex) => GestureDetector(
-                          onTap: () => setDialogState(() => color = hex),
-                          child: CircleAvatar(
-                            radius: 16,
-                            backgroundColor: colorFromHex(hex),
-                            child: color == hex
-                                ? const Icon(Icons.check, size: 16, color: Colors.white)
-                                : null,
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
-          ],
-        ),
-      ),
-    );
-    if (saved != true || name.text.trim().isEmpty) return;
-    final body = {'name': name.text.trim(), 'color': color};
     try {
-      if (existing == null) {
-        await widget.api.createLabel(body);
-      } else {
-        await widget.api.updateLabel(existing.id, body);
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(existing == null ? 'New label' : 'Edit label'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: name,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Name *',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _palette
+                        .map(
+                          (hex) => GestureDetector(
+                            onTap: () => setDialogState(() => color = hex),
+                            child: CircleAvatar(
+                              radius: 16,
+                              backgroundColor: colorFromHex(hex),
+                              child: color == hex
+                                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                                  : null,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
+            ],
+          ),
+        ),
+      );
+      if (saved != true || name.text.trim().isEmpty) return;
+      final body = {'name': name.text.trim(), 'color': color};
+      try {
+        if (existing == null) {
+          await widget.api.createLabel(body);
+        } else {
+          await widget.api.updateLabel(existing.id, body);
+        }
+        await _load();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+        }
       }
-      await _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
-      }
+    } finally {
+      name.dispose();
     }
   }
 
@@ -157,28 +161,54 @@ class _LabelsScreenState extends State<LabelsScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!))
-              : _labels.isEmpty
-                  ? const Center(child: Text('No labels yet — tap + to add one.'))
-                  : ListView.builder(
-                      itemCount: _labels.length,
-                      itemBuilder: (context, i) {
-                        final label = _labels[i];
-                        return ListTile(
-                          leading: CircleAvatar(
-                            radius: 12,
-                            backgroundColor: colorFromHex(label.color) ?? Colors.grey,
-                          ),
-                          title: Text(label.name),
-                          subtitle: Text('${label.itemCount} item${label.itemCount == 1 ? '' : 's'}'),
-                          onTap: () => _edit(existing: label),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => _delete(label),
-                          ),
-                        );
-                      },
-                    ),
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_error!),
+                      const SizedBox(height: 12),
+                      FilledButton.tonal(
+                        onPressed: _load,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: _labels.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.6,
+                              child: const Center(
+                                child: Text('No labels yet — tap + to add one.'),
+                              ),
+                            ),
+                          ],
+                        )
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: _labels.length,
+                          itemBuilder: (context, i) {
+                            final label = _labels[i];
+                            return ListTile(
+                              leading: CircleAvatar(
+                                radius: 12,
+                                backgroundColor: colorFromHex(label.color) ?? Colors.grey,
+                              ),
+                              title: Text(label.name),
+                              subtitle: Text('${label.itemCount} item${label.itemCount == 1 ? '' : 's'}'),
+                              onTap: () => _edit(existing: label),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () => _delete(label),
+                              ),
+                            );
+                          },
+                        ),
+                ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _edit(),
         child: const Icon(Icons.add),

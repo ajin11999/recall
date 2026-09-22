@@ -31,7 +31,24 @@ export const locations = new Hono<App>()
     const body = c.req.valid('json');
     const existing = await c.env.DB.prepare('SELECT * FROM locations WHERE id = ?').bind(id).first<Record<string, unknown>>();
     if (!existing) return c.json({ error: 'not found' }, 404);
-    if (body.parent_id === id) return c.json({ error: 'location cannot be its own parent' }, 400);
+    if (body.parent_id !== undefined && body.parent_id !== null) {
+      if (body.parent_id === id) {
+        return c.json({ error: 'location cannot be its own parent' }, 400);
+      }
+      let currId: number | null = body.parent_id;
+      const seen = new Set<number>();
+      while (currId !== null) {
+        if (currId === id) {
+          return c.json({ error: 'cannot set location parent to its own descendant' }, 400);
+        }
+        if (seen.has(currId)) break;
+        seen.add(currId);
+        const parentRow: { parent_id: number | null } | null = await c.env.DB.prepare('SELECT parent_id FROM locations WHERE id = ?')
+          .bind(currId)
+          .first<{ parent_id: number | null }>();
+        currId = parentRow?.parent_id ?? null;
+      }
+    }
     const row = await c.env.DB.prepare(
       'UPDATE locations SET name = ?, parent_id = ?, description = ? WHERE id = ? RETURNING *'
     )

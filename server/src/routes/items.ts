@@ -34,6 +34,7 @@ async function getItemDetail(db: Bindings['DB'], id: number) {
   if (!row) return null;
   return {
     ...row,
+    cover_photo_id: (photos.results[0] as { id: number } | undefined)?.id ?? null,
     labels: labels.results,
     photos: photos.results,
     maintenance_schedules: schedules.results,
@@ -85,11 +86,11 @@ export const items = new Hono<App>()
     }
 
     if (isLowStockParam) {
-      where.push('i.is_consumable = 1 AND i.quantity <= i.min_quantity');
+      where.push('i.is_consumable = 1 AND i.quantity <= i.min_quantity AND i.is_wishlist = 0');
     }
 
     if (q) {
-      let decodedQ = q.replace(/\+/g, ' ').trim();
+      let decodedQ = q.trim();
       let itemQuery = decodedQ;
       let locationQuery: string | null = null;
       const tags: string[] = [];
@@ -103,12 +104,12 @@ export const items = new Hono<App>()
         }
         decodedQ = decodedQ.replace(tagRegex, '').replace(/\s+/g, ' ').trim();
 
-        // Extract location
-        const locRegex = /^(.*?)\s+(?:in|at|inside)\s+(.*)$/i;
+        // Extract location (e.g. "drill in garage" or "in garage")
+        const locRegex = /^(?:(.*?)\s+)?(?:in|at|inside)\s+(.*)$/i;
         const locMatch = decodedQ.match(locRegex);
         
         if (locMatch) {
-          itemQuery = locMatch[1].trim();
+          itemQuery = (locMatch[1] ?? '').trim();
           locationQuery = locMatch[2].trim();
         } else {
           itemQuery = decodedQ;
@@ -125,10 +126,10 @@ export const items = new Hono<App>()
           withClause = `WITH RECURSIVE LocationAncestors AS (
             SELECT id as location_id, id as ancestor_id, name as ancestor_name FROM locations
             UNION ALL
-            SELECT la.location_id, l.parent_id, l.name
+            SELECT la.location_id, p.id as ancestor_id, p.name as ancestor_name
             FROM LocationAncestors la
-            JOIN locations l ON la.ancestor_id = l.id
-            WHERE l.parent_id IS NOT NULL
+            JOIN locations c ON la.ancestor_id = c.id
+            JOIN locations p ON c.parent_id = p.id
           )`;
           
           where.push(`EXISTS (
@@ -141,7 +142,7 @@ export const items = new Hono<App>()
       }
 
       if (itemQuery) {
-        const words = itemQuery.split(/\s+/);
+        const words = itemQuery.split(/\s+/).filter(Boolean);
         for (const word of words) {
           where.push('(LOWER(i.name) LIKE ? OR LOWER(COALESCE(i.description, \'\')) LIKE ? OR LOWER(COALESCE(i.serial_number, \'\')) LIKE ?)');
           const like = `%${word.toLowerCase()}%`;
@@ -174,7 +175,9 @@ export const items = new Hono<App>()
 
     const itemsOut = (list.results as Record<string, unknown>[]).map((r) => ({
       ...r,
-      label_ids: typeof r.label_ids === 'string' ? r.label_ids.split(',').map(Number) : [],
+      label_ids: typeof r.label_ids === 'string' && r.label_ids.length > 0
+        ? r.label_ids.split(',').filter(Boolean).map(Number)
+        : [],
     }));
     return c.json({
       items: itemsOut,
@@ -192,8 +195,8 @@ export const items = new Hono<App>()
     const b = c.req.valid('json');
     const row = await c.env.DB.prepare(
       `INSERT INTO items (name, description, quantity, location_id, serial_number, purchase_price,
-                          purchase_date, purchased_from, warranty_until, notes, is_consumable, min_quantity, is_wishlist)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+                          purchase_date, purchased_from, warranty_until, notes, is_consumable, min_quantity, is_wishlist, is_archived)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
     )
       .bind(
         b.name,
@@ -208,7 +211,8 @@ export const items = new Hono<App>()
         b.notes ?? null,
         b.is_consumable ? 1 : 0,
         b.min_quantity ?? 0,
-        b.is_wishlist ? 1 : 0
+        b.is_wishlist ? 1 : 0,
+        b.is_archived ? 1 : 0
       )
       .first<{ id: number }>();
     if (b.label_ids?.length) await replaceLabels(c.env.DB, row!.id, b.label_ids);
@@ -263,7 +267,8 @@ export const items = new Hono<App>()
     const newLocationId = b.location_id !== undefined ? b.location_id : existing.location_id;
     const newPrice = b.purchase_price !== undefined ? b.purchase_price : existing.purchase_price;
     const newDate = b.purchase_date ?? existing.purchase_date ?? todayStr;
-    const newQty = b.quantity ?? existing.quantity ?? 1;
+    const currentQty = Number(existing.quantity);
+    const newQty = b.quantity ?? (currentQty > 0 ? currentQty : 1);
 
     await c.env.DB.prepare(
       `UPDATE items SET is_wishlist = 0, location_id = ?, purchase_price = ?, purchase_date = ?, quantity = ?, updated_at = datetime('now')

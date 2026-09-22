@@ -57,7 +57,7 @@ class _LocationPickerSheetState extends State<_LocationPickerSheet> {
     Set<int> excludedIds = {};
     if (widget.excludeLocationId != null) {
       void walk(int id) {
-        excludedIds.add(id);
+        if (!excludedIds.add(id)) return;
         for (final l in widget.locations.where((loc) => loc.parentId == id)) {
           walk(l.id);
         }

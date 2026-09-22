@@ -18,6 +18,13 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _error;
   bool _obscurePassword = true;
 
+  @override
+  void dispose() {
+    _url.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
   Future<void> _submit() async {
     final baseUrl = _url.text.trim().replaceAll(RegExp(r'/+$'), '');
     if (baseUrl.isEmpty || _password.text.isEmpty) return;

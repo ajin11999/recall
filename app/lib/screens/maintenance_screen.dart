@@ -48,45 +48,50 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
   Future<void> _complete(MaintenanceSchedule s) async {
     final notes = TextEditingController();
     final cost = TextEditingController();
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Mark "${s.name}" done'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: notes,
-              decoration: const InputDecoration(
-                labelText: 'Notes',
-                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+    try {
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Mark "${s.name}" done'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: notes,
+                decoration: const InputDecoration(
+                  labelText: 'Notes',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: cost,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Cost',
-                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+              const SizedBox(height: 12),
+              TextField(
+                controller: cost,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Cost',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                ),
               ),
-            ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Done')),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Done')),
-        ],
-      ),
-    );
-    if (saved != true) return;
-    try {
-      await widget.api.completeSchedule(s.id, notes: notes.text.trim(), cost: num.tryParse(cost.text));
-      await _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+      );
+      if (saved != true) return;
+      try {
+        await widget.api.completeSchedule(s.id, notes: notes.text.trim(), cost: num.tryParse(cost.text));
+        await _load();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+        }
       }
+    } finally {
+      notes.dispose();
+      cost.dispose();
     }
   }
 
@@ -99,27 +104,47 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!))
-              : _upcoming.isEmpty
-                  ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Text(
-                          'Nothing due in the next 90 days.\nAdd schedules from an item\'s detail page.',
-                          textAlign: TextAlign.center,
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_error!),
+                      const SizedBox(height: 12),
+                      FilledButton.tonal(
+                        onPressed: _load,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: _upcoming.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.6,
+                              child: const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(24),
+                                  child: Text(
+                                    'Nothing due in the next 90 days.\nAdd schedules from an item\'s detail page.',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            if (overdue.isNotEmpty) _section('Overdue', overdue, isOverdue: true),
+                            if (later.isNotEmpty) _section('Upcoming', later),
+                          ],
                         ),
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      child: ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: [
-                          if (overdue.isNotEmpty) _section('Overdue', overdue, isOverdue: true),
-                          if (later.isNotEmpty) _section('Upcoming', later),
-                        ],
-                      ),
-                    ),
+                ),
     );
   }
 

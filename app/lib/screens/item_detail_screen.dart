@@ -56,17 +56,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   String? get _locationName {
     final id = _item?.locationId;
     if (id == null) return null;
-    
-    final map = {for (final l in _locations) l.id: l};
-    var curr = map[id];
-    if (curr == null) return null;
-    
-    final path = <String>[];
-    while (curr != null) {
-      path.add(curr.name);
-      curr = map[curr.parentId];
-    }
-    return path.reversed.join(' > ');
+    final path = _locations.pathFor(id);
+    return path.isEmpty ? null : path;
   }
 
   Future<void> _addPhoto(ImageSource source) async {
@@ -282,9 +273,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       ),
     );
     if (saved != true || name.text.trim().isEmpty) return;
+    final intervalVal = int.tryParse(interval.text) ?? 90;
     final body = {
       'name': name.text.trim(),
-      'interval_days': int.tryParse(interval.text) ?? 90,
+      'interval_days': intervalVal > 0 ? intervalVal : 90,
       'next_due_date': DateFormat('yyyy-MM-dd').format(due),
       'notes': notes.text.trim().isEmpty ? null : notes.text.trim(),
     };
@@ -364,7 +356,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   context,
                   MaterialPageRoute(builder: (_) => ItemEditScreen(api: widget.api, item: item)),
                 );
-                if (changed == true) _load();
+                if (changed == true) {
+                  _load();
+                  Notifications.sync(widget.api);
+                }
               },
             ),
           if (item != null)
@@ -447,9 +442,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   }
 
   Future<void> _onReorderPhotos(int oldIndex, int newIndex) async {
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
     setState(() {
       final photo = _item!.photos.removeAt(oldIndex);
       _item!.photos.insert(newIndex, photo);
@@ -469,7 +461,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       height: 120,
       child: ReorderableListView(
         scrollDirection: Axis.horizontal,
-        onReorder: _onReorderPhotos,
+        onReorderItem: _onReorderPhotos,
         header: const SizedBox(width: 16),
         footer: Padding(
           padding: const EdgeInsets.only(left: 8, right: 16),
@@ -554,11 +546,12 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
   Widget _infoCard(Item item) {
     final nf = NumberFormat('#,###');
+    final priceFmt = NumberFormat('#,##0.##');
     final List<(IconData, String, String)> details = [
       if (_locationName != null) (Icons.place_outlined, 'Location', _locationName!),
       (Icons.layers_outlined, 'Quantity', nf.format(item.quantity)),
       if (item.serialNumber?.isNotEmpty == true) (Icons.tag, 'Serial number', item.serialNumber!),
-      if (item.purchasePrice != null) (Icons.sell_outlined, 'Price', nf.format(item.purchasePrice)),
+      if (item.purchasePrice != null) (Icons.sell_outlined, 'Price', priceFmt.format(item.purchasePrice)),
       if (item.purchaseDate != null) (Icons.calendar_today_outlined, 'Purchased', item.purchaseDate!),
       if (item.purchasedFrom?.isNotEmpty == true) (Icons.storefront_outlined, 'Purchased From', item.purchasedFrom!),
       if (item.warrantyUntil != null)
@@ -745,7 +738,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   Widget _wishlistBanner(Item item) {
     return Card(
       elevation: 0,
-      color: Colors.purple.withOpacity(0.08),
+      color: Colors.purple.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         side: const BorderSide(color: Colors.purple, width: 1.5),
         borderRadius: BorderRadius.circular(16),
@@ -804,8 +797,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     return Card(
       elevation: 0,
       color: isOut
-          ? Colors.red.withOpacity(0.08)
-          : (isLow ? Colors.orange.withOpacity(0.08) : Theme.of(context).colorScheme.surfaceContainerLow),
+          ? Colors.red.withValues(alpha: 0.08)
+          : (isLow ? Colors.orange.withValues(alpha: 0.08) : Theme.of(context).colorScheme.surfaceContainerLow),
       shape: RoundedRectangleBorder(
         side: BorderSide(
           color: isOut ? Colors.red : (isLow ? Colors.orange : Theme.of(context).colorScheme.outlineVariant),
